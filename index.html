@@ -1078,10 +1078,46 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 
+/* ======================= Test hook (only with ?test in the URL) ======================= */
+const TEST_MODE=/[?&]test(?:[=&]|$)/.test(location.search);
+function exposeTestApi(){
+  const ids={EMPTY,SAND,WATER,STONE,WOOD,FIRE,SMOKE,STEAM,OIL,ACID,POWDER,LAVA,GLASS,METAL,ICE,PLANT,METEOR};
+  const idx=(x,y)=>{ if(x<0||x>=W||y<0||y>=H) throw new RangeError('cell out of bounds: '+x+','+y); return y*W+x; };
+  window.sandbox=Object.freeze({
+    E:Object.freeze(ids), TOOL_METEOR, TOOL_VORTEX,
+    names:()=>EL.map(e=>e.name),
+    size:()=>({W,H,S}),
+    seed:n=>{ seed=(n|0)||1; },
+    clear:()=>{ clearAll(); },
+    set:(x,y,e)=>{ setCell(idx(x,y),e); },
+    get:(x,y)=>g[idx(x,y)],
+    lifeAt:(x,y)=>life[idx(x,y)],
+    velAt:(x,y)=>[vx[idx(x,y)],vy[idx(x,y)]],
+    fill:(x0,y0,x1,y1,e)=>{ for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) setCell(idx(x,y),e); },
+    step:(n=1)=>{ for(let k=0;k<n;k++) step(); },
+    count:e=>{ let c=0; for(let i=0;i<N;i++) if(g[i]===e) c++; return c; },
+    cells:e=>{ const out=[]; for(let i=0;i<N;i++) if(g[i]===e) out.push([i%W,(i/W)|0]); return out; },
+    hash:()=>{ let h=0x811c9dc5; for(let i=0;i<N;i++){ h^=g[i]; h=Math.imul(h,0x01000193); } return h>>>0; },
+    gravity:d=>{ if(d!==undefined&&d!==down) flipGravity(); return down; },
+    scenes:()=>Object.keys(SCENES),
+    scene:name=>{ if(!SCENES[name]) throw new Error('unknown scene '+name); loadScene(name); },
+    explode:(x,y,R,p)=>explode(x,y,R,p),
+    vortex:(x,y,R,repel)=>vortex(x,y,R,!!repel),
+    meteor:x=>{ ptr.x=x; const b=brush; brush=0; spawnMeteor(); brush=b; },
+    ignite:(x,y)=>{ const i=idx(x,y); ignite(i,g[i]); },
+    render:()=>render(),
+    pixel:(x,y)=>buf[idx(x,y)],
+    background:(x,y)=>bg32[idx(x,y)],
+    state:()=>({paused,tool,brush,down,bloom,speed,fps,tps,particles:particleCount}),
+    pause:p=>{ if(!!p!==paused) togglePause(); },
+  });
+}
+
 layout();
 select(SAND);
 setBrush(5);
-loadScene('Volcano & Ocean');
+if(TEST_MODE){ exposeTestApi(); togglePause(); clearAll(); }
+else loadScene('Volcano & Ocean');
 requestAnimationFrame(frame);
 })();
 </script>
