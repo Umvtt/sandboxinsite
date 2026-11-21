@@ -25,7 +25,7 @@ test.describe('engine', () => {
     expect(r).toEqual({ n: 0, paused: true });
   });
 
-  for (const scene of ['Volcano & Ocean', 'Acid Vat', 'Hourglass', 'Frozen Forge', 'Powder Keg']) {
+  for (const scene of ['Volcano & Ocean', 'Acid Vat', 'Hourglass', 'Frozen Forge', 'Circuit Lab', 'Powder Keg']) {
     test(`scene "${scene}" loads and runs`, async ({ sb }) => {
       const r = await sb.run((name) => {
         sandbox.scene(name);

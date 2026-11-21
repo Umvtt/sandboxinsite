@@ -34,7 +34,22 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07080c;color:var(--
 #cursor.erase{border-color:rgba(255,110,110,.8)}
 #cursor.heat{border-color:rgba(255,120,60,.9);box-shadow:0 0 12px rgba(255,90,30,.5),0 0 0 1px rgba(0,0,0,.4)}
 #cursor.cool{border-color:rgba(110,190,255,.9);box-shadow:0 0 12px rgba(80,170,255,.5),0 0 0 1px rgba(0,0,0,.4)}
+#cursor.wind{border-style:dotted;border-color:rgba(210,230,245,.85)}
+#cursor.spark{border-color:rgba(180,220,255,.95);box-shadow:0 0 10px rgba(120,180,255,.6),0 0 0 1px rgba(0,0,0,.4)}
 #cursor.hidden{display:none}
+#shape{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;display:none;overflow:visible}
+#shape *{fill:rgba(124,196,255,.18);stroke:rgba(180,220,255,.85);stroke-width:1.5;stroke-dasharray:5 4}
+#shape line{fill:none;stroke:rgba(124,196,255,.45);stroke-linecap:round;stroke-dasharray:none}
+#shape.outline *{fill:none}
+#shape.erase *{fill:rgba(255,110,110,.15);stroke:rgba(255,140,140,.85)}
+#shape.erase line{stroke:rgba(255,110,110,.4)}
+#tip{position:fixed;z-index:30;width:220px;padding:9px 11px;border-radius:10px;pointer-events:none;
+  background:rgba(15,18,26,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);
+  box-shadow:0 10px 26px rgba(0,0,0,.4);opacity:0;transform:translateX(-4px);transition:opacity .12s,transform .12s}
+#tip.show{opacity:1;transform:none}
+#tip b{font-size:12px;font-weight:650}
+#tip kbd{float:right;font:600 9px/1 ui-monospace,monospace;color:var(--dim);padding:3px 5px;border-radius:4px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.06)}
+#tip p{margin-top:4px;color:#aeb6c6;font-size:11px;line-height:1.45}
 @keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
 
 .panel{position:fixed;z-index:10;background:var(--panel);
@@ -78,17 +93,26 @@ body.hide-ui #dock{transform:translate(-50%,6px)}
 #fpsbar{height:3px;border-radius:2px;background:rgba(255,255,255,.07);margin:6px 0 6px;overflow:hidden}
 #fpsbar div{height:100%;width:0;background:linear-gradient(90deg,#ff5d5d,#ffc65d,#5dff9a);transition:width .3s}
 
-#dock{left:50%;bottom:12px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:7px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 24px)}
+#dock{left:50%;bottom:12px;transform:translateX(-50%);width:max-content;display:flex;align-items:center;gap:6px;padding:7px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 24px)}
 .btn{font:inherit;color:var(--text);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:9px;
   padding:6px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:background .12s,border-color .12s}
 .btn:hover{background:rgba(255,255,255,.09)}
 .btn.on{background:rgba(124,196,255,.15);border-color:rgba(124,196,255,.45)}
+.btn:disabled{opacity:.38;cursor:default}
+.btn:disabled:hover{background:rgba(255,255,255,.04)}
+.btn.rec{background:rgba(255,70,70,.18);border-color:rgba(255,90,90,.6)}
+.btn.rec .dotr{animation:blink 1s steps(2) infinite}
+.dotr{width:8px;height:8px;border-radius:50%;background:#ff5a5a;display:inline-block}
+@keyframes blink{50%{opacity:.2}}
 .btn kbd{font:600 9px/1 ui-monospace,monospace;color:var(--dim)}
 .btn svg{width:13px;height:13px;fill:currentColor}
 .sep{width:1px;height:22px;background:var(--line);margin:0 2px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .seg button{font:inherit;color:var(--dim);background:transparent;border:0;padding:6px 8px;cursor:pointer}
 .seg button.on{color:var(--text);background:rgba(124,196,255,.16)}
+.seg.wide{display:flex}
+.seg.wide button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:4px;font-size:11px;padding:6px 2px}
+@media (max-width:1280px){#dock .btn kbd{display:none}}
 .brush{display:inline-flex;align-items:center;gap:8px;padding:0 6px;color:var(--dim)}
 .brush output{color:var(--text);font:600 11px ui-monospace,monospace;min-width:22px;text-align:right}
 input[type=range]{-webkit-appearance:none;appearance:none;width:110px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none}
@@ -110,7 +134,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   #stats{right:8px;top:8px;min-width:0;padding:7px 10px}
   #stats .big{font-size:16px}
   #stats .hide-sm,#fpsbar{display:none}
-  #dock{left:8px;right:8px;bottom:8px;transform:none;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;max-width:none;scrollbar-width:none}
+  #dock{left:8px;right:8px;bottom:8px;width:auto;transform:none;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;max-width:none;scrollbar-width:none}
   #dock::-webkit-scrollbar{display:none}
   body.hide-ui #dock{transform:translateY(6px)}
   .btn{padding:8px 10px}
@@ -128,11 +152,22 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <div id="flash"></div>
 </div>
 <div id="cursor"></div>
+<svg id="shape"></svg>
 <div id="toast"></div>
+<div id="tip"></div>
 
 <button id="menuBtn" class="panel" aria-label="Show elements"><i></i></button>
 <aside id="palette" class="panel">
   <div class="brand"><i class="dot"></i><b>SANDBOX</b><span>CA ENGINE</span></div>
+  <div class="group">
+    <h4>Draw</h4>
+    <div class="seg wide" id="drawSeg" title="Draw mode (D)">
+    <button data-m="free" class="on" title="Free draw" aria-label="Free draw"><svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M2 12c2-6 4-8 5-6s2 4 4 0 3 0 3 0l1 .8C14 9 13 3 11 7s-3.5 3-4.6.4S3.5 6.5 3.2 12.4z"/></svg>Free</button>
+    <button data-m="line" title="Line" aria-label="Line"><svg viewBox="0 0 16 16" width="12" height="12"><path d="M2 14L14 2" stroke="currentColor" stroke-width="2"/></svg>Line</button>
+    <button data-m="rect" title="Rectangle" aria-label="Rectangle"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="2" y="3" width="12" height="10" fill="none" stroke="currentColor" stroke-width="2"/></svg>Rect</button>
+    <button data-m="circle" title="Circle" aria-label="Circle"><svg viewBox="0 0 16 16" width="12" height="12"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Circle</button>
+  </div>
+  </div>
   <div id="groups"></div>
   <div class="group">
     <h4>Scenes</h4>
@@ -156,7 +191,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <b>Heat/Cool</b>: RMB does the opposite<br>
     <b>Spout</b> emits the last liquid/powder/gas picked<br>
     <b>Touch</b>: pinch to resize brush<br>
-    <b>H</b> HUD · <b>B</b> bloom · <b>G</b> gravity · <b>Y</b> thermal · <b>N</b> sound
+    <b>Shapes</b>: D cycles, Shift for outlines<br>
+    <b>Ctrl+Z</b> undo · <b>Ctrl+Shift+Z</b> redo<br>
+    <b>H</b> HUD · <b>B</b> bloom · <b>G</b> gravity · <b>Y</b> thermal · <b>N</b> sound · <b>R</b> record
   </div>
 </aside>
 
@@ -176,13 +213,16 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <button class="btn" id="bPlay" title="Pause / Play (Space)"><svg viewBox="0 0 16 16" id="playIcon"><path d="M4 3h3v10H4zM9 3h3v10H9z"/></svg><span id="playTxt">Pause</span><kbd>SPC</kbd></button>
   <button class="btn" id="bStep" title="Single step (S)"><svg viewBox="0 0 16 16"><path d="M3 3l7 5-7 5zM11 3h2v10h-2z"/></svg>Step<kbd>S</kbd></button>
   <button class="btn" id="bClear" title="Clear canvas (C)"><svg viewBox="0 0 16 16"><path d="M5 2h6v1h3v2H2V3h3zM3 6h10l-1 8H4z"/></svg>Clear<kbd>C</kbd></button>
+  <button class="btn" id="bUndo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 16 16"><path d="M6 3L1 7.5 6 12V9c4 0 6.5 1 8 4-.5-4.5-3-7-8-7.5z"/></svg></button>
+  <button class="btn" id="bRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg viewBox="0 0 16 16"><path d="M10 3l5 4.5-5 4.5V9c-4 0-6.5 1-8 4 .5-4.5 3-7 8-7.5z"/></svg></button>
   <div class="sep"></div>
   <button class="btn" id="bGrav" title="Flip gravity (G)"><svg viewBox="0 0 16 16" id="gravIcon"><path d="M7 2h2v8h3l-4 4-4-4h3z"/></svg>Gravity<kbd>G</kbd></button>
   <button class="btn on" id="bBloom" title="Bloom glow (B)">Bloom<kbd>B</kbd></button>
   <button class="btn" id="bHeat" title="Thermal view (Y)">Thermal<kbd>Y</kbd></button>
   <button class="btn on" id="bSound" title="Sound (N)">Sound<kbd>N</kbd></button>
+  <button class="btn" id="bRec" title="Record a video (R)"><i class="dotr"></i>Rec<kbd>R</kbd></button>
   <div class="seg" id="speedSeg">
-    <button data-s="0.5">½×</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button>
+    <button data-s="0.25">¼×</button><button data-s="0.5">½×</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button>
   </div>
   <div class="sep"></div>
   <label class="brush">Brush <input type="range" id="brush" min="1" max="25" value="5"><output id="brushOut">5</output></label>
@@ -194,9 +234,10 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 
 /* ======================= Element definitions ======================= */
 const EMPTY=0,SAND=1,WATER=2,STONE=3,WOOD=4,FIRE=5,SMOKE=6,STEAM=7,OIL=8,ACID=9,
-      POWDER=10,LAVA=11,GLASS=12,METAL=13,ICE=14,PLANT=15,METEOR=16,SPOUT=17;
-const NE=18;
-const TOOL_METEOR=100, TOOL_VORTEX=101, TOOL_HEAT=102, TOOL_COOL=103;
+      POWDER=10,LAVA=11,GLASS=12,METAL=13,ICE=14,PLANT=15,METEOR=16,SPOUT=17,
+      BATTERY=18,LAMP=19,SALT=20,BRINE=21;
+const NE=22;
+const TOOL_METEOR=100, TOOL_VORTEX=101, TOOL_HEAT=102, TOOL_COOL=103, TOOL_SPARK=104, TOOL_WIND=105;
 const K_SOLID=1,K_POWDER=2,K_LIQUID=3,K_GAS=4;
 const AMBIENT=20;
 
@@ -229,6 +270,13 @@ def(ICE,   {name:'Ice',      k:K_SOLID, d:255,ac:.15,           rgb:[178,226,252
 def(PLANT, {name:'Plant',    k:K_SOLID, d:255,f:.06,ac:.2,      rgb:[64,172,74],   v:.2,  rl:.004, cd:.01, ar:.002});
 def(METEOR,{name:'Meteor',   k:K_SOLID, d:255,                  rgb:[255,236,190], v:0,   tb:1500, rl:1, cd:.1});
 def(SPOUT, {name:'Spout',    k:K_SOLID, d:255,                  rgb:[64,70,84],    v:.12});
+def(BATTERY,{name:'Battery', k:K_SOLID, d:255,ac:.04,           rgb:[196,64,52],   v:.1,  rl:.001, cd:.02, ar:.001});
+def(LAMP,  {name:'Lamp',     k:K_SOLID, d:255,ac:.05,           rgb:[92,86,60],    v:.08, rl:.001, cd:.02, ar:.001});
+def(SALT,  {name:'Salt',     k:K_POWDER,d:88, ac:.1, fill:.45,  rgb:[234,236,240], v:.07, rl:.004, cd:.02, ar:.002});
+def(BRINE, {name:'Brine',    k:K_LIQUID,d:42, disp:4, fill:.55, rgb:[70,140,190],  v:.08, rl:.003, cd:.05, ar:.002});
+// what conducts electricity, and how readily a pulse jumps into it
+const conduct=new Float32Array(NE);
+conduct[METAL]=1; conduct[LAMP]=1; conduct[BRINE]=1; conduct[WATER]=.4;
 // conductance between two touching cells: geometric mean of their conductivities
 const tPair=new Float32Array(NE*NE);
 for(let a=0;a<NE;a++) for(let b=0;b<NE;b++) tPair[a*NE+b]=Math.sqrt(tCond[a]*tCond[b]);
@@ -238,24 +286,59 @@ TOOLS[TOOL_METEOR]={name:'Meteor',rgb:[255,120,50]};
 TOOLS[TOOL_VORTEX]={name:'Vortex',rgb:[120,170,255]};
 TOOLS[TOOL_HEAT]={name:'Heat',rgb:[255,90,40]};
 TOOLS[TOOL_COOL]={name:'Cool',rgb:[90,180,255]};
+TOOLS[TOOL_SPARK]={name:'Spark',rgb:[190,225,255]};
+TOOLS[TOOL_WIND]={name:'Wind',rgb:[200,220,235]};
 // elements a spout can emit
-const EMITTABLE=new Set([SAND,WATER,FIRE,SMOKE,STEAM,OIL,ACID,POWDER,LAVA]);
+const EMITTABLE=new Set([SAND,WATER,FIRE,SMOKE,STEAM,OIL,ACID,POWDER,LAVA,SALT,BRINE]);
 let spoutEl=WATER;
 // simulation events consumed by the sound engine each frame
 const EV={boom:0,boomMax:0,fizz:0,sizzle:0,meteor:0};
 
 const KEYMAP={'1':SAND,'2':WATER,'3':STONE,'4':WOOD,'5':FIRE,'6':OIL,'7':ACID,'8':POWDER,'9':LAVA,'0':GLASS,
   'e':EMPTY,'m':TOOL_METEOR,'v':TOOL_VORTEX,'x':METAL,'i':ICE,'p':PLANT,'k':SMOKE,'t':STEAM,
-  'a':SPOUT,'u':TOOL_HEAT,'o':TOOL_COOL};
+  'a':SPOUT,'u':TOOL_HEAT,'o':TOOL_COOL,'j':BATTERY,'l':LAMP,'q':TOOL_SPARK,'w':TOOL_WIND,'f':SALT};
 const KEYOF={}; for(const k in KEYMAP) KEYOF[KEYMAP[k]]=k.toUpperCase();
 
 const GROUPS=[
-  {name:'Powders', items:[SAND,POWDER]},
-  {name:'Liquids', items:[WATER,OIL,ACID,LAVA]},
+  {name:'Powders', items:[SAND,POWDER,SALT]},
+  {name:'Liquids', items:[WATER,OIL,ACID,LAVA,BRINE]},
   {name:'Solids',  items:[STONE,WOOD,GLASS,METAL,ICE,PLANT]},
   {name:'Gases & Energy', items:[FIRE,SMOKE,STEAM]},
-  {name:'Special Tools', items:[EMPTY,TOOL_METEOR,TOOL_VORTEX,TOOL_HEAT,TOOL_COOL,SPOUT]},
+  {name:'Electricity', items:[BATTERY,LAMP,TOOL_SPARK]},
+  {name:'Special Tools', items:[EMPTY,TOOL_METEOR,TOOL_VORTEX,TOOL_WIND,TOOL_HEAT,TOOL_COOL,SPOUT]},
 ];
+
+// tooltip text: what each element or tool does and reacts with
+const INFO={
+  [EMPTY]:'Removes anything under the brush. Right-click erases with any element.',
+  [SAND]:'Falls and piles up. Melts into glass above 1000 °C. Sinks through liquids.',
+  [WATER]:'Flows and levels out. Boils at 100 °C, freezes below 0 °C, puts out fire, turns lava to stone. Conducts electricity weakly.',
+  [STONE]:'Solid and heavy. Melts into lava above 1200 °C. Slowly eaten by acid.',
+  [WOOD]:'Burns for a long time, sheds embers and smoke. Ignites at 260 °C.',
+  [FIRE]:'Rises and flickers out. Ignites wood, oil, plants and gunpowder. Turns water to steam.',
+  [SMOKE]:'Drifts upward and fades.',
+  [STEAM]:'Rises and condenses back into water when it cools or reaches a ceiling.',
+  [OIL]:'Floats on water. Very flammable; ignites at 200 °C.',
+  [ACID]:'Dissolves most solids and powders. Glass and metal resist it. Diluted by water.',
+  [POWDER]:'Gunpowder. Fire, sparks, heat (170 °C) or blasts set it off in a chain reaction.',
+  [LAVA]:'Slow, glowing, 1100 °C. Lights anything flammable, turns sand to glass, cools to stone below 600 °C.',
+  [GLASS]:'Clear solid. Acid-proof. Shatters into sand in explosions.',
+  [METAL]:'Conducts heat fast and carries electric pulses. Glows when red hot.',
+  [ICE]:'Melts above 2 °C and chills its surroundings. Salt melts it.',
+  [PLANT]:'Grows into nearby water. Burns quickly.',
+  [METEOR]:'Falls from the sky and explodes on impact.',
+  [SPOUT]:'Endlessly emits the last liquid, powder or gas you picked.',
+  [BATTERY]:'Sends a steady train of pulses into touching metal, lamps, brine or water.',
+  [LAMP]:'Lights up when a pulse reaches it, and passes the pulse on.',
+  [SALT]:'Dissolves in water to make brine. Melts ice.',
+  [BRINE]:'Salt water. Conducts electricity well, freezes only below -15 °C, boils off and leaves salt behind.',
+  [TOOL_METEOR]:'Hold to rain meteors from the sky above the cursor.',
+  [TOOL_VORTEX]:'Hold to pull particles into a swirl. Right-click or Shift pushes them away.',
+  [TOOL_WIND]:'Drag to blow loose particles in the direction you move. Right-click blows the other way.',
+  [TOOL_HEAT]:'Hold to heat whatever is under the brush. Right-click cools.',
+  [TOOL_COOL]:'Hold to chill whatever is under the brush. Right-click heats.',
+  [TOOL_SPARK]:'Sends a pulse into metal, lamps, brine or water under the brush. Pulses ignite gunpowder and oil.',
+};
 
 const DX8=[-1,0,1,-1,1,-1,0,1], DY8=[-1,-1,-1,0,0,1,1,1];
 const DX4=[0,0,-1,1], DY4=[1,-1,0,0];
@@ -272,7 +355,7 @@ const TAU=Math.PI*2;
 
 const pal=new Uint32Array(NE*256), palHi=new Uint32Array(NE*256);
 const palW=new Uint32Array(256), palO=new Uint32Array(256), palA=new Uint32Array(256), glowA=new Uint32Array(256);
-const palL=new Uint32Array(256), firePal=new Uint32Array(256), palBurn=new Uint32Array(256);
+const palL=new Uint32Array(256), firePal=new Uint32Array(256), palBurn=new Uint32Array(256), palB=new Uint32Array(256);
 // thermal view: index = (temp+40)/5, i.e. -40°C .. 1235°C
 const heatPal=new Uint32Array(256);
 const heatIdx=t=>{ const k=((t+40)/5)|0; return k<0?0:k>255?255:k; };
@@ -300,6 +383,7 @@ const heatIdx=t=>{ const k=((t+40)/5)|0; return k<0?0:k>255?255:k; };
     let wr=38*f, wg=116*f, wb=226*f;
     if((c&63)<2){ wr+=70; wg+=80; wb+=30; }
     palW[c]=pack(wr,wg,wb);
+    palB[c]=pack(70*f+((c&63)<3?60:0),140*f+((c&63)<3?70:0),190*f+((c&63)<3?50:0));
     // oil: dark amber with iridescent sheen
     palO[c]=pack(90+16*Math.sin(p*2),60+14*Math.sin(p*2+2.1),30+20*Math.sin(p*2+4.2));
     // acid: luminous green
@@ -338,23 +422,41 @@ const ctx=canvas.getContext('2d',{alpha:false}), gctx=glowC.getContext('2d');
 const stage=document.getElementById('stage'), flashEl=document.getElementById('flash');
 
 let W=0,H=0,N=0,S=4;
-let g,life,col,vx,vy,stamp,temp;
+let g,life,col,vx,vy,stamp,temp,zap;
+// sleeping chunks: 16x16 regions where nothing changed are skipped
+const CS=16;
+let CW=0,CH=0,chunkOf,mNext,mCur,mProc,hNext,hCur,hProc;
+const HEPS=.002;
+function wake(i){ const c=chunkOf[i]; mNext[c]=1; hNext[c]=1; }
+function keep(i){ mNext[chunkOf[i]]=1; }
+function wakeAll(){ if(mNext){ mNext.fill(1); hNext.fill(1); } }
+function wakeRect(x0,y0,x1,y1){
+  const cx0=Math.max(0,x0>>4), cy0=Math.max(0,y0>>4), cx1=Math.min(CW-1,x1>>4), cy1=Math.min(CH-1,y1>>4);
+  for(let cy=cy0;cy<=cy1;cy++) for(let cx=cx0;cx<=cx1;cx++){ mNext[cy*CW+cx]=1; hNext[cy*CW+cx]=1; }
+}
+// a chunk is processed when it or any neighbour was active last tick
+function dilate(src,dst){
+  dst.fill(0);
+  for(let cy=0;cy<CH;cy++) for(let cx=0;cx<CW;cx++){
+    if(!src[cy*CW+cx]) continue;
+    for(let y=Math.max(0,cy-1);y<=Math.min(CH-1,cy+1);y++) for(let x=Math.max(0,cx-1);x<=Math.min(CW-1,cx+1);x++) dst[y*CW+x]=1;
+  }
+}
 let bg32,bgR,bgG,bgB,img,buf,gimg,gbuf;
 let tick=0, down=1;
 
 function alloc(nw,nh){
-  const og=g,ol=life,oc=col,ot=temp,ow=W,oh=H;
+  const old=g?{g,life,col,temp,zap,W,H}:null;
   W=nw;H=nh;N=W*H;
   g=new Uint8Array(N); life=new Uint8Array(N); col=new Uint8Array(N);
   vx=new Int8Array(N); vy=new Int8Array(N); stamp=new Uint8Array(N);
-  temp=new Float32Array(N).fill(AMBIENT);
-  if(og){
-    const cw=Math.min(ow,W), ch=Math.min(oh,H);
-    for(let y=0;y<ch;y++){
-      const so=(oh-1-y)*ow, d=(H-1-y)*W;
-      for(let x=0;x<cw;x++){ g[d+x]=og[so+x]; life[d+x]=ol[so+x]; col[d+x]=oc[so+x]; temp[d+x]=ot[so+x]; }
-    }
-  }
+  temp=new Float32Array(N).fill(AMBIENT); zap=new Uint8Array(N);
+  CW=Math.ceil(W/CS); CH=Math.ceil(H/CS);
+  chunkOf=new Uint16Array(N);
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++) chunkOf[y*W+x]=(y>>4)*CW+(x>>4);
+  mNext=new Uint8Array(CW*CH).fill(1); mCur=new Uint8Array(CW*CH); mProc=new Uint8Array(CW*CH);
+  hNext=new Uint8Array(CW*CH).fill(1); hCur=new Uint8Array(CW*CH); hProc=new Uint8Array(CW*CH);
+  if(old) blitWorld(old);
   canvas.width=W; canvas.height=H; glowC.width=W; glowC.height=H;
   img=ctx.createImageData(W,H); buf=new Uint32Array(img.data.buffer);
   gimg=gctx.createImageData(W,H); gbuf=new Uint32Array(gimg.data.buffer);
@@ -372,6 +474,16 @@ function alloc(nw,nh){
   document.getElementById('sGrid').textContent=W+'×'+H;
 }
 
+// copy a stored world into the grid, anchored to the bottom-left corner
+function blitWorld(s){
+  const cw=Math.min(s.W,W), ch=Math.min(s.H,H);
+  for(let y=0;y<ch;y++){
+    const so=(s.H-1-y)*s.W, d=(H-1-y)*W;
+    for(let x=0;x<cw;x++){ g[d+x]=s.g[so+x]; life[d+x]=s.life[so+x]; col[d+x]=s.col[so+x]; temp[d+x]=s.temp[so+x]; zap[d+x]=s.zap[so+x]; }
+  }
+  wakeAll();
+}
+
 function layout(){
   const vw=innerWidth, vh=innerHeight;
   S=Math.max(2,Math.round(Math.sqrt(vw*vh/72000)));
@@ -384,19 +496,20 @@ function layout(){
 
 /* ======================= Cell primitives ======================= */
 function setCell(i,e){
-  g[i]=e; col[i]=rnd()&255; vx[i]=0; vy[i]=0; stamp[i]=tick; temp[i]=tBase[e];
+  g[i]=e; col[i]=rnd()&255; vx[i]=0; vy[i]=0; stamp[i]=tick; temp[i]=tBase[e]; zap[i]=0;
+  wake(i);
   switch(e){
     case FIRE:  life[i]=18+rnd()%40; break;
     case SMOKE: life[i]=110+rnd()%140; break;
     case STEAM: life[i]=140+rnd()%110; break;
-    case WATER: case OIL: case ACID: case LAVA: life[i]=rnd()&1; break;
+    case WATER: case OIL: case ACID: case LAVA: case BRINE: life[i]=rnd()&1; break;
     case SPOUT: life[i]=spoutEl; break;
     default: life[i]=0;
   }
 }
 // change a cell's element but keep its heat (phase changes)
 function morph(i,e){ const t=temp[i]; setCell(i,e); temp[i]=t; }
-function clear(i){ g[i]=0; life[i]=0; vx[i]=0; vy[i]=0; stamp[i]=tick; temp[i]=AMBIENT; }
+function clear(i){ g[i]=0; life[i]=0; vx[i]=0; vy[i]=0; stamp[i]=tick; temp[i]=AMBIENT; zap[i]=0; wake(i); }
 function swap(a,b){
   let t=g[a]; g[a]=g[b]; g[b]=t;
   t=life[a]; life[a]=life[b]; life[b]=t;
@@ -404,7 +517,9 @@ function swap(a,b){
   t=vx[a]; vx[a]=vx[b]; vx[b]=t;
   t=vy[a]; vy[a]=vy[b]; vy[b]=t;
   t=temp[a]; temp[a]=temp[b]; temp[b]=t;
+  t=zap[a]; zap[a]=zap[b]; zap[b]=t;
   stamp[a]=tick; stamp[b]=tick;
+  wake(a);
 }
 const clampV=v=>v>12?12:v<-12?-12:v;
 
@@ -413,7 +528,10 @@ function tryMove(e,i,j){
   if(t===0){ swap(i,j); return true; }
   const kt=kind[t];
   if(kt===K_GAS){ if(kind[e]!==K_GAS){ swap(i,j); return true; } return false; }
-  if(kt===K_LIQUID && dens[e]>dens[t] && r01()<(kind[e]===K_LIQUID?.35:.6)){ swap(i,j); return true; }
+  if(kt===K_LIQUID && dens[e]>dens[t]){
+    if(r01()<(kind[e]===K_LIQUID?.35:.6)){ swap(i,j); return true; }
+    keep(i);
+  }
   return false;
 }
 
@@ -483,9 +601,11 @@ function ballistic(i,x,y,e){
   else { if(rnd()&1) nvy+=down; if((rnd()&7)===0) nvx-=Math.sign(nvx); }
   vx[ci]=clampV(nvx); vy[ci]=clampV(nvy);
   stamp[ci]=tick;
+  if(vx[ci]|vy[ci]) keep(ci);
 }
 
 function ignite(j,t){
+  wake(j);
   switch(t){
     case WOOD:   if(!life[j]) life[j]=1; break;
     case POWDER: if(!life[j]) life[j]=1; break;
@@ -580,6 +700,11 @@ function lava(i,x,y){
 }
 
 function acid(i,x,y){
+  for(let n=0;n<4;n++){
+    const nx=x+DX4[n], ny=y+DY4[n];
+    if(nx<0||nx>=W||ny<0||ny>=H) continue;
+    const t=g[ny*W+nx]; if(dissolve[t]>0||t===WATER){ keep(i); break; }
+  }
   for(let n=0;n<2;n++){
     let nx=x, ny=y;
     if(n===0) ny=y+down;
@@ -618,17 +743,20 @@ function spout(i,x,y){
 
 /* ---------- temperature: conduction, relaxation, air cooling, phase changes ---------- */
 function heatStep(){
+  let sw=hCur; hCur=hNext; hNext=sw; hNext.fill(0); dilate(hCur,hProc);
   for(let y=0;y<H;y++){
-    const row=y*W;
+    const row=y*W, crow=(y>>4)*CW;
     for(let x=0;x<W;x++){
+      if(!hProc[crow+(x>>4)]){ x|=15; continue; }
       const i=row+x, e=g[i];
       if(e===0) continue;
-      let t=temp[i];
+      const t0=temp[i];
+      let t=t0, moved=false;
       const rl=tRelax[e]; if(rl) t+=(tBase[e]-t)*rl;
       if(tCond[e]){
         const pr=e*NE;
-        if(x+1<W){ const j=i+1, e2=g[j]; if(e2){ const k=tPair[pr+e2]; if(k){ const f=(temp[j]-t)*k; t+=f; temp[j]-=f; } } }
-        if(y+1<H){ const j=i+W, e2=g[j]; if(e2){ const k=tPair[pr+e2]; if(k){ const f=(temp[j]-t)*k; t+=f; temp[j]-=f; } } }
+        if(x+1<W){ const j=i+1, e2=g[j]; if(e2){ const k=tPair[pr+e2]; if(k){ const f=(temp[j]-t)*k; t+=f; temp[j]-=f; if(f>HEPS||f<-HEPS) moved=true; } } }
+        if(y+1<H){ const j=i+W, e2=g[j]; if(e2){ const k=tPair[pr+e2]; if(k){ const f=(temp[j]-t)*k; t+=f; temp[j]-=f; if(f>HEPS||f<-HEPS) moved=true; } } }
       }
       const ar=tAir[e];
       if(ar){
@@ -640,17 +768,19 @@ function heatStep(){
         if(open) t+=(AMBIENT-t)*ar*open;
       }
       temp[i]=t;
+      if(moved||t-t0>HEPS||t0-t>HEPS) hNext[crow+(x>>4)]=1;
       switch(e){
-        case WATER: if(t>100){ if(r01()<.15) morph(i,STEAM); } else if(t<-3&&r01()<.05) morph(i,ICE); break;
+        case WATER: if(t>100){ hNext[crow+(x>>4)]=1; if(r01()<.15) morph(i,STEAM); } else if(t<-3){ hNext[crow+(x>>4)]=1; if(r01()<.05) morph(i,ICE); } break;
+        case BRINE: if(t>102){ hNext[crow+(x>>4)]=1; if(r01()<.12) morph(i,r01()<.5?SALT:STEAM); } else if(t<-15){ hNext[crow+(x>>4)]=1; if(r01()<.05) morph(i,ICE); } break;
         case ICE:   if(t>2) morph(i,WATER); break;
-        case STEAM: if(t<40&&r01()<.02) morph(i,WATER); break;
-        case LAVA:  if(t<600&&r01()<.03) morph(i,STONE); break;
+        case STEAM: if(t<40){ hNext[crow+(x>>4)]=1; if(r01()<.02) morph(i,WATER); } break;
+        case LAVA:  if(t<600){ hNext[crow+(x>>4)]=1; if(r01()<.03) morph(i,STONE); } break;
         case STONE: if(t>1200) morph(i,LAVA); break;
         case SAND:  if(t>1000) morph(i,GLASS); break;
-        case WOOD:  if(t>260&&!life[i]) life[i]=1; break;
+        case WOOD:  if(t>260&&!life[i]){ life[i]=1; wake(i); } break;
         case OIL:   if(t>200){ ignite(i,OIL); } break;
         case PLANT: if(t>220) ignite(i,PLANT); break;
-        case POWDER:if(t>170&&!life[i]) life[i]=1; break;
+        case POWDER:if(t>170&&!life[i]){ life[i]=1; wake(i); } break;
       }
     }
   }
@@ -665,16 +795,87 @@ function applyTemp(cx,cy,r,dt){
       const x=cx+dx; if(x<0||x>=W) continue;
       const j=y*W+x; if(!g[j]) continue;
       let t=temp[j]+dt; if(t>1500) t=1500; else if(t<-60) t=-60;
-      temp[j]=t;
+      temp[j]=t; hNext[chunkOf[j]]=1;
     }
   }
 }
 
 function plant(i,x,y){
+  let wet=false;
+  for(let n=0;n<4;n++){
+    const nx=x+DX4[n], ny=y+DY4[n];
+    if(nx>=0&&nx<W&&ny>=0&&ny<H&&g[ny*W+nx]===WATER){ wet=true; break; }
+  }
+  if(!wet) return;
+  keep(i);
+  if((rnd()&15)!==0) return;
   const k=rnd()&7, nx=x+DX8[k], ny=y+DY8[k];
   if(nx<0||nx>=W||ny<0||ny>=H) return;
   const j=ny*W+nx;
   if(g[j]===WATER&&r01()<.3) setCell(j,PLANT);
+}
+
+// salt dissolves into water (making brine) and melts ice
+function salt(i,x,y){
+  for(let n=0;n<4;n++){
+    const nx=x+DX4[n], ny=y+DY4[n];
+    if(nx<0||nx>=W||ny<0||ny>=H) continue;
+    const j=ny*W+nx, t=g[j];
+    if(t===WATER){ keep(i); if(r01()<.04){ morph(j,BRINE); clear(i); return true; } }
+    else if(t===ICE){ keep(i); if(r01()<.03){ morph(j,BRINE); temp[j]=Math.max(temp[j],-5); clear(i); return true; } }
+  }
+  return false;
+}
+
+/* ---------- electricity: pulses travel through conductors as head -> tail -> rest ---------- */
+// zap: 0 idle, 3 head, 2 tail, 1 resting, 5 head arriving next tick
+let zapLive=0;
+const pulseHeat=new Float32Array(NE);
+pulseHeat[METAL]=.25; pulseHeat[WATER]=.5; pulseHeat[BRINE]=.5; pulseHeat[LAMP]=.2;
+function battery(i,x,y){
+  let wired=false;
+  for(let n=0;n<4;n++){
+    const nx=x+DX4[n], ny=y+DY4[n];
+    if(nx<0||nx>=W||ny<0||ny>=H) continue;
+    const j=ny*W+nx;
+    if(conduct[g[j]]){ wired=true; if(zap[j]===0){ zap[j]=3; zapLive=1; } }
+  }
+  if(wired) keep(i);
+}
+function sparkAt(cx,cy,r){
+  const rr=(r-.5)*(r-.5), lim=r-1;
+  for(let dy=-lim;dy<=lim;dy++){
+    const y=cy+dy; if(y<0||y>=H) continue;
+    for(let dx=-lim;dx<=lim;dx++){
+      if(dx*dx+dy*dy>rr) continue;
+      const x=cx+dx; if(x<0||x>=W) continue;
+      const j=y*W+x;
+      if(conduct[g[j]]&&zap[j]===0){ zap[j]=3; zapLive=1; }
+    }
+  }
+}
+function elecStep(){
+  if(!zapLive) return;
+  for(let i=0;i<N;i++){
+    const z=zap[i]; if(!z||z===5) continue;
+    const e=g[i];
+    if(!conduct[e]){ zap[i]=0; continue; }
+    if(z!==3){ zap[i]=z-1; continue; }
+    const x=i%W, y=(i/W)|0;
+    for(let n=0;n<4;n++){
+      const nx=x+DX4[n], ny=y+DY4[n];
+      if(nx<0||nx>=W||ny<0||ny>=H) continue;
+      const j=ny*W+nx, t=g[j], c=conduct[t];
+      if(c){ if(zap[j]===0&&(c>=1||r01()<c)) zap[j]=5; }
+      else if(flam[t]>0&&r01()<.25) ignite(j,t);
+    }
+    temp[i]+=pulseHeat[e]; hNext[chunkOf[i]]=1;
+    if(e===LAMP){ life[i]=60; keep(i); }
+    zap[i]=2;
+  }
+  let live=0;
+  for(let i=0;i<N;i++){ const z=zap[i]; if(z){ live=1; if(z===5) zap[i]=3; } }
+  zapLive=live;
 }
 
 function meteor(i,x,y){
@@ -726,6 +927,7 @@ function explode(cx,cy,R,power){
       } else if(t===WOOD&&d2<=R2*2&&r01()<.2&&!life[j]) life[j]=1;
     }
   }
+  wakeRect(cx-OR,cy-OR,cx+OR,cy+OR);
   EV.boom++; if(R>EV.boomMax) EV.boomMax=R;
   shake=Math.min(14,shake+R*.55);
   if(R>=7){
@@ -737,6 +939,7 @@ function explode(cx,cy,R,power){
 
 function vortex(cx,cy,R,repel){
   const R2=R*R, s=repel?-1:1;
+  wakeRect(cx-R,cy-R,cx+R,cy+R);
   for(let dy=-R;dy<=R;dy++){
     const y=cy+dy; if(y<0||y>=H) continue;
     for(let dx=-R;dx<=R;dx++){
@@ -754,27 +957,48 @@ function vortex(cx,cy,R,repel){
   }
 }
 
+// wind: push loose particles along (dx,dy)
+function wind(cx,cy,R,dx,dy){
+  const R2=R*R, m=Math.hypot(dx,dy)||1, ux=dx/m, uy=dy/m;
+  wakeRect(cx-R,cy-R,cx+R,cy+R);
+  for(let oy=-R;oy<=R;oy++){
+    const y=cy+oy; if(y<0||y>=H) continue;
+    for(let ox=-R;ox<=R;ox++){
+      const x=cx+ox; if(x<0||x>=W) continue;
+      const d2=ox*ox+oy*oy; if(d2>R2) continue;
+      const j=y*W+x, t=g[j];
+      if(kind[t]<K_POWDER||t===METEOR) continue;
+      const f=(kind[t]===K_GAS?3.2:2.2)*(1-Math.sqrt(d2)/(R+1))+.6;
+      vx[j]=clampV(Math.round(vx[j]*.5+ux*f+(r01()-.5)));
+      vy[j]=clampV(Math.round(vy[j]*.5+uy*f+(r01()-.5)));
+    }
+  }
+}
+
 /* ======================= Main simulation step ======================= */
-function step(){
-  if(++tick>255){ stamp.fill(0); tick=1; }
-  const yS=down>0?H-1:0, yE=down>0?-1:H, yI=-down;
-  for(let y=yS;y!==yE;y+=yI){
-    const ltr=(rnd()&1)===0, row=y*W;
-    for(let k=0;k<W;k++){
-      const x=ltr?k:W-1-k, i=row+x, e=g[i];
-      if(e===0||stamp[i]===tick) continue;
+// elements that must be updated every tick while they exist
+const ACTIVE=new Uint8Array(NE);
+for(const e of [FIRE,SMOKE,STEAM,LAVA,METEOR,SPOUT]) ACTIVE[e]=1;
+function update(i,x,y,e){
+      if(ACTIVE[e]) keep(i);
       switch(e){
         case STONE: case GLASS: case METAL: break;
         case SAND:
           if(vx[i]|vy[i]) ballistic(i,x,y,e); else powder(i,x,y,e);
           break;
-        case POWDER:
-          if(life[i]&&++life[i]>4){ clear(i); explode(x,y,4+rnd()%3,5); break; }
+        case SALT:
+          if(salt(i,x,y)) break;
           if(vx[i]|vy[i]) ballistic(i,x,y,e); else powder(i,x,y,e);
           break;
-        case WATER: case OIL:
+        case POWDER:
+          if(life[i]){ keep(i); if(++life[i]>4){ clear(i); explode(x,y,4+rnd()%3,5); break; } }
+          if(vx[i]|vy[i]) ballistic(i,x,y,e); else powder(i,x,y,e);
+          break;
+        case WATER: case OIL: case BRINE:
           if(vx[i]|vy[i]) ballistic(i,x,y,e); else liquid(i,x,y,e);
           break;
+        case BATTERY: battery(i,x,y); break;
+        case LAMP: if(life[i]){ life[i]--; keep(i); } break;
         case ACID:
           if(vx[i]|vy[i]) ballistic(i,x,y,e); else if(!acid(i,x,y)) liquid(i,x,y,e);
           break;
@@ -782,16 +1006,34 @@ function step(){
         case FIRE:  fire(i,x,y); break;
         case SMOKE: smoke(i,x,y); break;
         case STEAM: steam(i,x,y); break;
-        case WOOD:  if(life[i]) burnWood(i,x,y); break;
+        case WOOD:  if(life[i]){ keep(i); burnWood(i,x,y); } break;
         case ICE:   if((rnd()&15)===0) ice(i,x,y); break;
-        case PLANT: if((rnd()&15)===0) plant(i,x,y); break;
+        case PLANT: plant(i,x,y); break;
         case METEOR: meteor(i,x,y); break;
         case SPOUT: if((rnd()&3)===0) spout(i,x,y); break;
       }
+}
+function step(){
+  if(++tick>255){ stamp.fill(0); tick=1; }
+  let t=mCur; mCur=mNext; mNext=t; mNext.fill(0); dilate(mCur,mProc);
+  const yS=down>0?H-1:0, yE=down>0?-1:H, yI=-down;
+  for(let y=yS;y!==yE;y+=yI){
+    const ltr=(rnd()&1)===0, row=y*W, crow=(y>>4)*CW;
+    for(let k=0;k<CW;k++){
+      const cx=ltr?k:CW-1-k; if(!mProc[crow+cx]) continue;
+      const xa=cx<<4, xb=xa+CS<W?xa+CS:W;
+      if(ltr){
+        for(let x=xa;x<xb;x++){ const i=row+x, e=g[i]; if(e!==0&&stamp[i]!==tick) update(i,x,y,e); }
+      } else {
+        for(let x=xb-1;x>=xa;x--){ const i=row+x, e=g[i]; if(e!==0&&stamp[i]!==tick) update(i,x,y,e); }
+      }
     }
   }
+  elecStep();
   heatStep();
 }
+// number of chunks processed in the last tick (movement, heat) out of the total
+function awakeStats(){ let m=0,h=0; for(let c=0;c<CW*CH;c++){ m+=mProc[c]; h+=hProc[c]; } return {move:m,heat:h,total:CW*CH}; }
 
 /* ======================= Rendering ======================= */
 let bloom=true, heatView=false, frameNo=0, particleCount=0, fireCount=0;
@@ -802,9 +1044,13 @@ function hotTint(c,t,start){
   const r=c&255, gg=(c>>>8)&255, b=(c>>>16)&255;
   return pack(r+((fc&255)-r)*a, gg+(((fc>>>8)&255)-gg)*a, b+(((fc>>>16)&255)-b)*a);
 }
+const shade=(c,f)=>pack((c&255)*f,((c>>>8)&255)*f,((c>>>16)&255)*f);
+const ZAP_HEAD=pack(214,240,255), ZAP_GLOW=pack(110,170,255);
+let depth=new Uint16Array(0);
 function render(){
   const bl=bloom&&!heatView, wS=(frameNo*2)&255, lS=frameNo&255, dW=down*W;
   let count=0, fires=0;
+  if(depth.length!==W) depth=new Uint16Array(W);
   if(heatView){
     for(let i=0;i<N;i++){
       const e=g[i];
@@ -816,11 +1062,26 @@ function render(){
     ctx.putImageData(img,0,0);
     return;
   }
-  for(let i=0;i<N;i++){
-    const e=g[i];
-    if(e===0){ buf[i]=bg32[i]; if(bl) gbuf[i]=0; continue; }
+  // scan from the sky side so each liquid cell knows how deep it sits
+  depth.fill(0);
+  const yS=down>0?0:H-1, yE=down>0?H:-1;
+  for(let y=yS;y!==yE;y+=down){
+   const row=y*W;
+   for(let x=0;x<W;x++){
+    const i=row+x, e=g[i];
+    if(e===0){ buf[i]=bg32[i]; if(bl) gbuf[i]=0; depth[x]=0; continue; }
     count++;
     let c, gc=0;
+    if(kind[e]===K_LIQUID){
+      const d=depth[x]; depth[x]=d+1;
+      if(e===WATER||e===BRINE){
+        c=e===WATER?palW[(col[i]+wS)&255]:palB[(col[i]+wS)&255];
+        c=shade(c,d===0?1.18:d<34?1-d*.014:.53);
+        if(zap[i]){ c=zap[i]===3?ZAP_HEAD:shade(c,1.4); if(zap[i]===3) gc=ZAP_GLOW; }
+        buf[i]=c; if(bl) gbuf[i]=gc;
+        continue;
+      }
+    } else depth[x]=0;
     switch(e){
       case WATER: c=palW[(col[i]+wS)&255]; break;
       case OIL:   c=palO[(col[i]+wS)&255]; break;
@@ -852,12 +1113,25 @@ function render(){
           break;
         }
         // fallthrough
+      case LAMP: {
+        const L=life[i];
+        if(L){ const k=L>40?1:L/40; c=pack(92+163*k,86+156*k,60+110*k); gc=pack(200*k,170*k,70*k); }
+        else c=pal[(LAMP<<8)|col[i]];
+        if(zap[i]===3){ c=ZAP_HEAD; gc=ZAP_GLOW; }
+      } break;
+      case BATTERY: {
+        const j=i-dW, top=j>=0&&j<N&&g[j]!==BATTERY;
+        c=top?pack(230,226,214):pal[(BATTERY<<8)|col[i]];
+      } break;
       default: {
         const k=(e<<8)|col[i];
         if(kind[e]===K_SOLID){
           const j=i-dW; c=(j>=0&&j<N&&g[j]===0)?palHi[k]:pal[k];
           const t=temp[i];
-          if(e===METAL){ if(t>250){ c=hotTint(c,t,250); if(t>400) gc=c; } }
+          if(e===METAL){
+            if(t>250){ c=hotTint(c,t,250); if(t>400) gc=c; }
+            const z=zap[i]; if(z===3){ c=ZAP_HEAD; gc=ZAP_GLOW; } else if(z===2) c=shade(c,1.35);
+          }
           else if(t>450&&e===STONE){ c=hotTint(c,t,450); if(t>550) gc=c; }
         }
         else c=pal[k];
@@ -865,6 +1139,7 @@ function render(){
     }
     buf[i]=c;
     if(bl) gbuf[i]=gc;
+   }
   }
   particleCount=count; fireCount=fires;
   ctx.putImageData(img,0,0);
@@ -969,6 +1244,7 @@ function decodeWorld(bytes){
     if(!run||i+run>w*h||(s&31)>=NE) throw new Error('corrupt world');
     sym.fill(s,i,i+run); i+=run;
   }
+  checkpoint();
   clearAll();
   down=dflag?1:-1; syncGravity();
   const cw=Math.min(w,W), ch=Math.min(h,H);
@@ -1036,47 +1312,106 @@ async function loadFromHash(){
   catch(e){ toast('Link is broken: '+e.message); return false; }
 }
 
+/* ======================= Undo / redo ======================= */
+const HIST_MAX=30;
+const undoStack=[], redoStack=[];
+function snapshot(){ return {W,H,down,g:g.slice(),life:life.slice(),col:col.slice(),temp:temp.slice(),zap:zap.slice()}; }
+function restore(s){
+  clearAll();
+  blitWorld(s);
+  if(down!==s.down){ down=s.down; syncGravity(); }
+}
+// call before anything that changes the world on purpose
+function checkpoint(){
+  undoStack.push(snapshot()); if(undoStack.length>HIST_MAX) undoStack.shift();
+  redoStack.length=0; syncHistory();
+}
+function undo(){
+  if(!undoStack.length){ toast('Nothing to undo'); return false; }
+  redoStack.push(snapshot()); restore(undoStack.pop()); syncHistory(); toast('Undo'); return true;
+}
+function redo(){
+  if(!redoStack.length){ toast('Nothing to redo'); return false; }
+  undoStack.push(snapshot()); restore(redoStack.pop()); syncHistory(); toast('Redo'); return true;
+}
+function syncHistory(){
+  const u=document.getElementById('bUndo'), r=document.getElementById('bRedo');
+  if(u) u.disabled=!undoStack.length; if(r) r.disabled=!redoStack.length;
+}
+
 /* ======================= Input & tools ======================= */
 let tool=SAND, brush=5, paused=false, stepReq=false, speed=1, meteorCd=0;
-const ptr={x:-1,y:-1,lx:0,ly:0,cx:-999,cy:-999,down:false,btn:0,shift:false,over:false};
+// free-hand painting or a shape dragged from the press point
+let drawMode='free';
+const DRAW_MODES=['free','line','rect','circle'];
+const ptr={x:-1,y:-1,lx:0,ly:0,sx:0,sy:0,wx:1,wy:0,cx:-999,cy:-999,down:false,btn:0,shift:false,over:false};
 const cursorEl=document.getElementById('cursor');
 
-function paintAt(cx,cy,r,e){
+function paintCell(j,e,full){
+  const t=g[j];
+  if(e===EMPTY){ if(t) clear(j); }
+  else if(t===0||(kind[t]===K_GAS&&kind[e]!==K_GAS)){
+    const p=fillP[e]; if(full||p>=1||r01()<p) setCell(j,e);
+  }
+}
+function paintAt(cx,cy,r,e,full){
   const rr=(r-.5)*(r-.5), lim=r-1;
   for(let dy=-lim;dy<=lim;dy++){
     const y=cy+dy; if(y<0||y>=H) continue;
     for(let dx=-lim;dx<=lim;dx++){
       if(dx*dx+dy*dy>rr) continue;
       const x=cx+dx; if(x<0||x>=W) continue;
-      const j=y*W+x, t=g[j];
-      if(e===EMPTY){ if(t) clear(j); }
-      else if(t===0||(kind[t]===K_GAS&&kind[e]!==K_GAS)){
-        const p=fillP[e]; if(p>=1||r01()<p) setCell(j,e);
+      paintCell(y*W+x,e,full);
+    }
+  }
+}
+// shapes: filled unless outline is set; outlines and lines use the brush as thickness
+function drawShape(mode,x0,y0,x1,y1,e,outline){
+  const th=Math.max(1,Math.round(brush/3));
+  if(mode==='line'){ paintLine(x0,y0,x1,y1,Math.max(1,Math.round(brush/2)),e,true); return; }
+  if(mode==='rect'){
+    const xa=Math.max(0,Math.min(x0,x1)), xb=Math.min(W-1,Math.max(x0,x1)), ya=Math.max(0,Math.min(y0,y1)), yb=Math.min(H-1,Math.max(y0,y1));
+    for(let y=ya;y<=yb;y++) for(let x=xa;x<=xb;x++){
+      if(outline&&x-xa>=th&&xb-x>=th&&y-ya>=th&&yb-y>=th) continue;
+      paintCell(y*W+x,e,true);
+    }
+    return;
+  }
+  if(mode==='circle'){
+    const R=Math.hypot(x1-x0,y1-y0), Ri=R-th, R2=(R+.5)*(R+.5), Ri2=Ri>0?(Ri+.5)*(Ri+.5):-1, L=Math.ceil(R);
+    for(let dy=-L;dy<=L;dy++){
+      const y=y0+dy; if(y<0||y>=H) continue;
+      for(let dx=-L;dx<=L;dx++){
+        const x=x0+dx; if(x<0||x>=W) continue;
+        const d2=dx*dx+dy*dy; if(d2>R2||(outline&&d2<Ri2)) continue;
+        paintCell(y*W+x,e,true);
       }
     }
   }
 }
-function paintLine(x0,y0,x1,y1,r,e){
+function paintLine(x0,y0,x1,y1,r,e,full){
   const dx=Math.abs(x1-x0), dy=-Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1;
   const stride=Math.max(1,r>>1);
   let err=dx+dy, n=0;
   for(;;){
-    if(n++%stride===0) paintAt(x0,y0,r,e);
+    if(n++%stride===0) paintAt(x0,y0,r,e,full);
     if(x0===x1&&y0===y1) break;
     const e2=2*err;
     if(e2>=dy){ err+=dy; x0+=sx; }
     if(e2<=dx){ err+=dx; y0+=sy; }
   }
-  paintAt(x1,y1,r,e);
+  paintAt(x1,y1,r,e,full);
 }
 function activeElement(){ return ptr.btn===2?EMPTY:tool; }
 function isElementTool(t){ return t<NE; }
 const isTempTool=t=>t===TOOL_HEAT||t===TOOL_COOL;
 // does the current stroke place/erase cells?
 function paints(){
-  if(ptr.btn===2) return tool!==TOOL_VORTEX&&!isTempTool(tool);
+  if(ptr.btn===2) return tool!==TOOL_VORTEX&&tool!==TOOL_WIND&&!isTempTool(tool);
   return tool<NE;
 }
+// is the current stroke a shape being dragged out?
+const shaping=()=>drawMode!=='free'&&paints();
 
 function spawnMeteor(){
   const sx=Math.max(0,Math.min(W-1,ptr.x+((rnd()%(brush*2+1))-brush)));
@@ -1089,6 +1424,8 @@ function spawnMeteor(){
 function applyHeldTools(){
   if(!ptr.down) return;
   if(tool===TOOL_VORTEX){ vortex(ptr.x,ptr.y,brush*2+8,ptr.btn===2||ptr.shift); return; }
+  if(tool===TOOL_WIND){ const s=ptr.btn===2?-1:1; wind(ptr.x,ptr.y,brush*2+6,ptr.wx*s,ptr.wy*s); return; }
+  if(tool===TOOL_SPARK&&ptr.btn!==2){ sparkAt(ptr.x,ptr.y,brush); return; }
   if(tool===TOOL_METEOR&&ptr.btn!==2){ if(--meteorCd<=0){ spawnMeteor(); meteorCd=10; } return; }
   if(isTempTool(tool)){
     const hot=(tool===TOOL_HEAT)!==(ptr.btn===2);
@@ -1111,16 +1448,18 @@ canvas.addEventListener('pointerdown',ev=>{
   if(ev.pointerType==='touch'){
     touches.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
     if(touches.size>=2){
-      ptr.down=false;
+      ptr.down=false; hideShapePreview();
       pinch={d0:touchDist(),b0:brush};
       updateCursor();
       return;
     }
   }
   const [x,y]=toCell(ev);
-  ptr.x=ptr.lx=x; ptr.y=ptr.ly=y; ptr.down=true; ptr.btn=ev.button===2?2:0; ptr.shift=ev.shiftKey;
+  ptr.x=ptr.lx=ptr.sx=x; ptr.y=ptr.ly=ptr.sy=y; ptr.down=true; ptr.btn=ev.button===2?2:0; ptr.shift=ev.shiftKey;
   ptr.cx=ev.clientX; ptr.cy=ev.clientY; ptr.over=true;
+  checkpoint();
   if(tool===TOOL_METEOR&&ptr.btn!==2){ spawnMeteor(); meteorCd=10; }
+  else if(shaping()) updateShapePreview();
   else if(paints()) paintAt(x,y,brush,activeElement());
   updateCursor();
 });
@@ -1135,7 +1474,10 @@ canvas.addEventListener('pointermove',ev=>{
   const [x,y]=toCell(ev);
   ptr.cx=ev.clientX; ptr.cy=ev.clientY; ptr.shift=ev.shiftKey; ptr.over=true;
   ptr.x=x; ptr.y=y;
-  if(ptr.down&&paints()) paintLine(ptr.lx,ptr.ly,x,y,brush,activeElement());
+  const mx=x-ptr.lx, my=y-ptr.ly;
+  if(mx||my){ const m=Math.hypot(mx,my); ptr.wx=ptr.wx*.5+mx/m*.5; ptr.wy=ptr.wy*.5+my/m*.5; }
+  if(ptr.down&&shaping()) updateShapePreview();
+  else if(ptr.down&&paints()) paintLine(ptr.lx,ptr.ly,x,y,brush,activeElement());
   ptr.lx=x; ptr.ly=y;
   updateCursor();
 });
@@ -1145,7 +1487,11 @@ const endDraw=ev=>{
     if(touches.size<2) pinch=null;
     if(touches.size===0) ptr.over=false;
   }
-  ptr.down=false; updateCursor();
+  if(ptr.down&&shaping()&&!(ev&&ev.type==='pointercancel')){
+    if(ev&&ev.clientX!==undefined){ const [x,y]=toCell(ev); ptr.x=x; ptr.y=y; }
+    drawShape(drawMode,ptr.sx,ptr.sy,ptr.x,ptr.y,activeElement(),ptr.shift);
+  }
+  ptr.down=false; hideShapePreview(); updateCursor();
 };
 canvas.addEventListener('pointerup',endDraw);
 canvas.addEventListener('pointercancel',endDraw);
@@ -1158,10 +1504,24 @@ addEventListener('wheel',ev=>{
   setBrush(brush+(ev.deltaY<0?1:-1));
 },{passive:false});
 
+const shapeEl=document.getElementById('shape');
+function updateShapePreview(){
+  const h=S/2, x0=ptr.sx*S+h, y0=ptr.sy*S+h, x1=ptr.x*S+h, y1=ptr.y*S+h;
+  let svg='';
+  if(drawMode==='line') svg='<line x1="'+x0+'" y1="'+y0+'" x2="'+x1+'" y2="'+y1+'" stroke-width="'+Math.max(2,Math.round(brush/2)*2*S-S)+'"/>';
+  else if(drawMode==='rect') svg='<rect x="'+Math.min(x0,x1)+'" y="'+Math.min(y0,y1)+'" width="'+Math.abs(x1-x0)+'" height="'+Math.abs(y1-y0)+'"/>';
+  else if(drawMode==='circle') svg='<circle cx="'+x0+'" cy="'+y0+'" r="'+Math.hypot(x1-x0,y1-y0)+'"/>';
+  shapeEl.innerHTML=svg;
+  shapeEl.classList.toggle('erase',ptr.btn===2||tool===EMPTY);
+  shapeEl.classList.toggle('outline',!!ptr.shift);
+  shapeEl.style.display='block';
+}
+function hideShapePreview(){ shapeEl.style.display='none'; shapeEl.innerHTML=''; }
+
 function updateCursor(){
   const c=cursorEl;
   if(!ptr.over&&!ptr.down&&!pinch){ c.className='hidden'; return; }
-  const R=tool===TOOL_VORTEX?brush*2+8:Math.max(brush-.5,.5);
+  const R=tool===TOOL_VORTEX?brush*2+8:tool===TOOL_WIND?brush*2+6:Math.max(brush-.5,.5);
   const d=Math.max(6,R*2*S);
   c.style.width=d+'px'; c.style.height=d+'px';
   if(pinch&&touches.size>=2){
@@ -1170,6 +1530,8 @@ function updateCursor(){
   } else { c.style.left=ptr.cx+'px'; c.style.top=ptr.cy+'px'; }
   let cls='';
   if(tool===TOOL_VORTEX) cls='vortex'+((ptr.down&&(ptr.btn===2||ptr.shift))?' repel':'');
+  else if(tool===TOOL_WIND) cls='wind';
+  else if(tool===TOOL_SPARK) cls='spark';
   else if(tool===TOOL_METEOR) cls='meteor';
   else if(isTempTool(tool)) cls=((tool===TOOL_HEAT)!==(ptr.down&&ptr.btn===2))?'heat':'cool';
   else if(tool===EMPTY||(ptr.down&&ptr.btn===2)) cls='erase';
@@ -1177,7 +1539,7 @@ function updateCursor(){
 }
 
 /* ======================= Scenes ======================= */
-function clearAll(){ g.fill(0); life.fill(0); vx.fill(0); vy.fill(0); temp.fill(AMBIENT); }
+function clearAll(){ g.fill(0); life.fill(0); vx.fill(0); vy.fill(0); temp.fill(AMBIENT); zap.fill(0); zapLive=0; wakeAll(); }
 function put(x,y,e,p){ x|=0; y|=0; if(x<0||x>=W||y<0||y>=H) return; if(p!==undefined&&r01()>p) return; setCell(y*W+x,e); }
 function rect(x0,y0,x1,y1,e,p){ for(let y=y0|0;y<=(y1|0);y++) for(let x=x0|0;x<=(x1|0);x++) put(x,y,e,p); }
 function rectEmpty(x0,y0,x1,y1,e,p){ for(let y=y0|0;y<=(y1|0);y++) for(let x=x0|0;x<=(x1|0);x++){ if(x>=0&&x<W&&y>=0&&y<H&&g[y*W+x]===0) put(x,y,e,p); } }
@@ -1293,6 +1655,36 @@ const SCENES={
     rect(fx1-12*u,py-4*u,fx1-4,py,POWDER);
     toast('Tip: press Y for the thermal view');
   },
+  'Circuit Lab'(){
+    const gy=H*.7|0, u=Math.max(1,H/110);
+    rect(0,gy,W-1,H-1,STONE);
+    // battery feeding a metal bus along the floor
+    const bx=W*.28|0, wy=gy-2;
+    rect(bx,gy-10*u,bx+4*u,gy-1,BATTERY);
+    rect(bx+4*u+1,wy,W*.93,wy+1,METAL);
+    // lamps on posts
+    for(let k=0;k<5;k++){
+      const lx=(W*.34+k*W*.045)|0, top=wy-(8+k*3)*u|0;
+      rect(lx,top,lx+1,wy-1,METAL);
+      rect(lx-2,top-3,lx+3,top-1,LAMP);
+    }
+    // brine trough the bus runs through, with a lamp on the far side
+    const tx0=W*.6|0, tx1=W*.72|0;
+    rect(tx0,wy-8*u,tx0+1,wy-1,GLASS); rect(tx1,wy-8*u,tx1+1,wy-1,GLASS);
+    rect(tx0+2,wy-6*u,tx1-1,wy+1,BRINE);
+    const lx=tx1+8, top=wy-14*u|0;
+    rect(lx,top,lx+1,wy-1,METAL); rect(lx-2,top-3,lx+3,top-1,LAMP);
+    // the wire ends in a pile of gunpowder behind a wall, with a gap to bridge
+    const px=W*.9|0;
+    rect(px-8,wy-12*u,px-7,wy-1,STONE);
+    rect(px-14,wy,px-12,wy+1,EMPTY);
+    for(let k=0;k<10;k++) rect(px-5+k,wy-(10-Math.abs(k-5))*u*.6,px-5+k,wy-1,POWDER);
+    // a block of ice with salt on top
+    const ix=W*.45|0, iy=H*.18|0;
+    rect(ix,iy,ix+14*u,iy+10*u,ICE);
+    rect(ix+2,iy-3*u,ix+14*u-2,iy-1,SALT,.8);
+    toast('Tip: bridge the gap in the wire with metal (X)');
+  },
   'Powder Keg'(){
     const gy=H-8;
     rect(0,gy,W-1,H-1,STONE); rect(0,gy-2,W-1,gy-1,SAND);
@@ -1322,6 +1714,7 @@ const SCENES={
 };
 
 function loadScene(name){
+  checkpoint();
   clearAll(); down=1; syncGravity();
   SCENES[name]();
   toast(name);
@@ -1334,6 +1727,11 @@ function toolName(t){ return t<NE?EL[t].name:TOOLS[t].name; }
 const narrow=()=>matchMedia('(max-width:700px)').matches;
 function toolColor(t){
   if(t===EMPTY) return 'repeating-linear-gradient(45deg,#2a2f3a 0 3px,#444b5a 3px 6px)';
+  if(t===TOOL_SPARK) return 'radial-gradient(circle,#ffffff,#9fd2ff 40%,#2b5fb0)';
+  if(t===TOOL_WIND) return 'repeating-linear-gradient(90deg,#cfe0ee 0 2px,transparent 2px 4px),#3b4a5a';
+  if(t===BATTERY) return 'linear-gradient(180deg,#e6e2d6 0 25%,#c4403a 25%)';
+  if(t===LAMP) return 'radial-gradient(circle at 50% 40%,#fff6c0,#e8b84a 45%,#5c563c)';
+  if(t===BRINE) return 'linear-gradient(135deg,#8cc4e8,#3a7fb0)';
   if(t===TOOL_METEOR) return 'radial-gradient(circle at 35% 35%,#fff3c4,#ff8a3d 45%,#7a1f08)';
   if(t===TOOL_VORTEX) return 'conic-gradient(#7cc4ff,#a77cff,#4cf0d0,#7cc4ff)';
   if(t===TOOL_HEAT) return 'radial-gradient(circle at 50% 70%,#fff0a0,#ff6a20 50%,#8a1a04)';
@@ -1353,10 +1751,12 @@ function toolColor(t){
     gd.innerHTML='<h4>'+grp.name+'</h4>';
     const grid=document.createElement('div'); grid.className='grid';
     for(const t of grp.items){
-      const b=document.createElement('button'); b.className='sw'; b.title=toolName(t)+(KEYOF[t]?' ('+KEYOF[t]+')':'');
+      const b=document.createElement('button'); b.className='sw'; b.setAttribute('aria-label',toolName(t));
       b.innerHTML='<i></i><em>'+toolName(t)+'</em>'+(KEYOF[t]?'<kbd>'+KEYOF[t]+'</kbd>':'');
       b.firstChild.style.background=toolColor(t);
       b.addEventListener('click',()=>select(t));
+      b.addEventListener('mouseenter',()=>showTip(t,b));
+      b.addEventListener('mouseleave',hideTip);
       swatchEls[t]=b; grid.appendChild(b);
     }
     gd.appendChild(grid); host.appendChild(gd);
@@ -1377,7 +1777,12 @@ function toolColor(t){
   $('bSound').addEventListener('click',toggleSound);
   $('bPlay').addEventListener('click',togglePause);
   $('bStep').addEventListener('click',stepOnce);
-  $('bClear').addEventListener('click',()=>{ clearAll(); toast('Cleared'); });
+  $('bClear').addEventListener('click',clearWorld);
+  $('bUndo').addEventListener('click',undo);
+  $('bRedo').addEventListener('click',redo);
+  $('bRec').addEventListener('click',toggleRecord);
+  for(const b of $('drawSeg').children) b.addEventListener('click',()=>setDrawMode(b.dataset.m));
+  syncHistory();
   $('bGrav').addEventListener('click',flipGravity);
   $('bBloom').addEventListener('click',()=>{ toggleBloom(); bloomForced=true; });
 $('bSound').classList.toggle('on',Sound.enabled);
@@ -1385,6 +1790,59 @@ $('bSound').classList.toggle('on',Sound.enabled);
   for(const b of $('speedSeg').children) b.addEventListener('click',()=>setSpeed(+b.dataset.s));
 })();
 
+function clearWorld(){ checkpoint(); clearAll(); toast('Cleared'); }
+const tipEl=document.getElementById('tip');
+function showTip(t,b){
+  if(narrow()) return;
+  const r=b.getBoundingClientRect(), p=$('palette').getBoundingClientRect();
+  tipEl.innerHTML='<b>'+(t===SPOUT?'Spout':toolName(t))+'</b>'+(KEYOF[t]?'<kbd>'+KEYOF[t]+'</kbd>':'')+'<p>'+(INFO[t]||'')+'</p>';
+  tipEl.style.left=(p.right+8)+'px';
+  tipEl.style.top=Math.max(8,Math.min(innerHeight-120,r.top-4))+'px';
+  tipEl.classList.add('show');
+}
+function hideTip(){ tipEl.classList.remove('show'); }
+function setDrawMode(m){
+  if(!DRAW_MODES.includes(m)) return;
+  drawMode=m;
+  for(const b of $('drawSeg').children) b.classList.toggle('on',b.dataset.m===m);
+}
+// screen recording: the grid is upscaled with crisp pixels into a recording canvas
+let rec=null, recC=null, recX=null;
+function recSupported(){ return !!(window.MediaRecorder&&HTMLCanvasElement.prototype.captureStream); }
+function toggleRecord(){
+  if(rec){ rec.stop(); return; }
+  if(!recSupported()){ toast('Recording is not supported in this browser'); return; }
+  const k=Math.max(1,Math.min(S,Math.floor(1600/W)));
+  recC=document.createElement('canvas'); recC.width=W*k; recC.height=H*k;
+  recX=recC.getContext('2d'); recX.imageSmoothingEnabled=false;
+  recX.drawImage(canvas,0,0,recC.width,recC.height);
+  const types=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'];
+  const type=types.find(t=>MediaRecorder.isTypeSupported(t));
+  const chunks=[];
+  try{ rec=new MediaRecorder(recC.captureStream(30),type?{mimeType:type,videoBitsPerSecond:6e6}:undefined); }
+  catch(e){ rec=null; toast('Recording failed: '+e.message); return; }
+  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+  rec.onstop=()=>{
+    const mime=(rec&&rec.mimeType)||type||'video/webm';
+    const blob=new Blob(chunks,{type:mime});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sandbox.'+(mime.includes('mp4')?'mp4':'webm');
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    rec=null; recC=null; recX=null;
+    $('bRec').classList.remove('on','rec'); toast('Recording saved');
+  };
+  rec.start(500);
+  $('bRec').classList.add('on','rec'); toast('Recording… press R to stop');
+}
+function recordFrame(){
+  if(!recX) return;
+  recX.drawImage(canvas,0,0,recC.width,recC.height);
+  if(bloom&&!heatView){
+    recX.save(); recX.globalCompositeOperation='screen'; recX.globalAlpha=.8;
+    recX.filter='blur('+(recC.width/W*2.4).toFixed(1)+'px)';
+    recX.drawImage(glowC,0,0,recC.width,recC.height); recX.restore();
+  }
+}
 function spoutCss(){ const [r,g,b]=EL[spoutEl].rgb; return 'rgb('+r+','+g+','+b+')'; }
 function select(t){
   tool=t;
@@ -1417,7 +1875,7 @@ function syncGravity(){
   $('gravIcon').style.transform=down>0?'':'rotate(180deg)';
   $('bGrav').classList.toggle('on',down<0);
 }
-function flipGravity(){ down=-down; syncGravity(); toast(down>0?'Gravity ↓':'Gravity ↑'); }
+function flipGravity(){ down=-down; syncGravity(); wakeAll(); toast(down>0?'Gravity ↓':'Gravity ↑'); }
 function toggleBloom(){ bloom=!bloom; glowC.classList.toggle('off',!bloom||heatView); $('bBloom').classList.toggle('on',bloom); }
 function toggleHeatView(){
   heatView=!heatView; glowC.classList.toggle('off',!bloom||heatView); $('bHeat').classList.toggle('on',heatView);
@@ -1432,7 +1890,13 @@ function toast(msg){
 }
 
 addEventListener('keydown',ev=>{
-  if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
+  if((ev.ctrlKey||ev.metaKey)&&!ev.altKey){
+    const k=ev.key.toLowerCase();
+    if(k==='z'){ ev.preventDefault(); if(ev.shiftKey) redo(); else undo(); }
+    else if(k==='y'){ ev.preventDefault(); redo(); }
+    return;
+  }
+  if(ev.altKey) return;
   Sound.init();
   const k=ev.key.toLowerCase();
   if(ev.code==='Space'){ ev.preventDefault(); togglePause(); return; }
@@ -1440,7 +1904,9 @@ addEventListener('keydown',ev=>{
   if(KEYMAP[k]!==undefined){ select(KEYMAP[k]); return; }
   switch(k){
     case 's': stepOnce(); break;
-    case 'c': clearAll(); toast('Cleared'); break;
+    case 'c': clearWorld(); break;
+    case 'r': toggleRecord(); break;
+    case 'd': { const m=DRAW_MODES[(DRAW_MODES.indexOf(drawMode)+1)%DRAW_MODES.length]; setDrawMode(m); toast(m==='free'?'Free draw':'Draw '+m+'s'); } break;
     case 'g': flipGravity(); break;
     case 'b': toggleBloom(); bloomForced=true; break;
     case 'y': toggleHeatView(); break;
@@ -1466,15 +1932,17 @@ function simTick(){ applyHeldTools(); step(); fpsTicks++; }
 function frame(now){
   let dt=now-last; last=now; if(dt>250) dt=250;
   // continuous flow while the brush is held still
-  if(ptr.down&&paints()&&(ptr.btn===2||(rnd()&1))) paintAt(ptr.x,ptr.y,brush,activeElement());
+  if(ptr.down&&paints()&&!shaping()&&(ptr.btn===2||(rnd()&1))) paintAt(ptr.x,ptr.y,brush,activeElement());
   if(!paused){
     acc+=dt*speed; let n=0;
-    while(acc>=DT&&n<4){ simTick(); acc-=DT; n++; }
-    if(n===4) acc=0;
+    const cap=speed>2?8:4;
+    while(acc>=DT&&n<cap){ simTick(); acc-=DT; n++; }
+    if(n===cap) acc=0;
   } else if(stepReq){ simTick(); stepReq=false; }
 
   frameNo++;
   render();
+  recordFrame();
 
   // camera shake & flash
   if(shake>.25){
@@ -1499,7 +1967,7 @@ function frame(now){
   Sound.frame(EV,fireCount,now);
   if(ptr.over&&(frameNo&7)===0&&ptr.x>=0){
     const i=ptr.y*W+ptr.x, t=g[i];
-    sHover.textContent=t?(t===WOOD&&life[i]?'Burning wood':t===SPOUT?'Spout · '+(EL[life[i]]?EL[life[i]].name:'?'):EL[t].name):'—';
+    sHover.textContent=t?(t===WOOD&&life[i]?'Burning wood':t===SPOUT?'Spout · '+(EL[life[i]]?EL[life[i]].name:'?'):t===LAMP&&life[i]?'Lamp (lit)':EL[t].name):'—';
     sTemp.textContent=t?Math.round(temp[i])+'°C':'—';
   }
   requestAnimationFrame(frame);
@@ -1508,10 +1976,10 @@ function frame(now){
 /* ======================= Test hook (only with ?test in the URL) ======================= */
 const TEST_MODE=/[?&]test(?:[=&]|$)/.test(location.search);
 function exposeTestApi(){
-  const ids={EMPTY,SAND,WATER,STONE,WOOD,FIRE,SMOKE,STEAM,OIL,ACID,POWDER,LAVA,GLASS,METAL,ICE,PLANT,METEOR,SPOUT};
+  const ids={EMPTY,SAND,WATER,STONE,WOOD,FIRE,SMOKE,STEAM,OIL,ACID,POWDER,LAVA,GLASS,METAL,ICE,PLANT,METEOR,SPOUT,BATTERY,LAMP,SALT,BRINE};
   const idx=(x,y)=>{ if(x<0||x>=W||y<0||y>=H) throw new RangeError('cell out of bounds: '+x+','+y); return y*W+x; };
   window.sandbox=Object.freeze({
-    E:Object.freeze(ids), TOOL_METEOR, TOOL_VORTEX, TOOL_HEAT, TOOL_COOL,
+    E:Object.freeze(ids), TOOL_METEOR, TOOL_VORTEX, TOOL_HEAT, TOOL_COOL, TOOL_SPARK, TOOL_WIND,
     names:()=>EL.map(e=>e.name),
     size:()=>({W,H,S}),
     seed:n=>{ seed=(n|0)||1; },
@@ -1535,10 +2003,10 @@ function exposeTestApi(){
     render:()=>render(),
     pixel:(x,y)=>buf[idx(x,y)],
     background:(x,y)=>bg32[idx(x,y)],
-    state:()=>({paused,tool,brush,down,bloom,heatView,speed,fps,tps,particles:particleCount,spoutEl,
+    state:()=>({paused,tool,brush,down,bloom,heatView,speed,fps,tps,particles:particleCount,spoutEl,drawMode,
       sound:{enabled:Sound.enabled,running:Sound.running,stats:{...Sound.stats}}}),
     tempAt:(x,y)=>temp[idx(x,y)],
-    setTemp:(x,y,t)=>{ temp[idx(x,y)]=t; },
+    setTemp:(x,y,t)=>{ const i=idx(x,y); temp[i]=t; wake(i); },
     heat:(x,y,r,dt)=>applyTemp(x,y,r,dt),
     spout:(x,y,e)=>{ const i=idx(x,y); setCell(i,SPOUT); life[i]=e; },
     spoutOf:(x,y)=>life[idx(x,y)],
@@ -1550,6 +2018,18 @@ function exposeTestApi(){
     loadLocal:()=>loadLocal(),
     shareLink:()=>shareLink(),
     pause:p=>{ if(!!p!==paused) togglePause(); },
+    zapAt:(x,y)=>zap[idx(x,y)],
+    spark:(x,y,r=1)=>sparkAt(x,y,r),
+    wind:(x,y,R,dx,dy)=>wind(x,y,R,dx,dy),
+    awake:()=>awakeStats(),
+    checkpoint:()=>checkpoint(),
+    undo:()=>undo(),
+    redo:()=>redo(),
+    history:()=>({undo:undoStack.length,redo:redoStack.length,max:HIST_MAX}),
+    drawMode:m=>{ if(m!==undefined) setDrawMode(m); return drawMode; },
+    shape:(mode,x0,y0,x1,y1,e,outline)=>drawShape(mode,x0,y0,x1,y1,e,!!outline),
+    recording:()=>!!rec,
+    info:t=>INFO[t]||'',
   });
 }
 
@@ -1557,9 +2037,10 @@ layout();
 select(SAND);
 setBrush(5);
 const hasLink=/^#w=/.test(location.hash);
-if(TEST_MODE){ exposeTestApi(); togglePause(); clearAll(); if(hasLink) loadFromHash(); }
+if(TEST_MODE){ exposeTestApi(); togglePause(); clearAll(); if(hasLink) loadFromHash(); undoStack.length=0; syncHistory(); }
 else if(hasLink) loadFromHash().then(ok=>{ if(!ok) loadScene('Volcano & Ocean'); });
 else loadScene('Volcano & Ocean');
+if(!TEST_MODE){ undoStack.length=0; syncHistory(); }
 requestAnimationFrame(frame);
 })();
 </script>

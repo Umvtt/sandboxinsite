@@ -6,9 +6,10 @@ const px = (S, x, y) => [x * S + S / 2, y * S + S / 2];
 test.describe('controls', () => {
   test('number and letter shortcuts select elements and tools', async ({ sb }) => {
     const { page } = sb;
-    const E = await sb.run(() => ({ ...sandbox.E, METEORT: sandbox.TOOL_METEOR, VORTEXT: sandbox.TOOL_VORTEX, HEATT: sandbox.TOOL_HEAT, COOLT: sandbox.TOOL_COOL }));
+    const E = await sb.run(() => ({ ...sandbox.E, METEORT: sandbox.TOOL_METEOR, VORTEXT: sandbox.TOOL_VORTEX, HEATT: sandbox.TOOL_HEAT, COOLT: sandbox.TOOL_COOL, SPARKT: sandbox.TOOL_SPARK, WINDT: sandbox.TOOL_WIND }));
     const map = { 1: E.SAND, 2: E.WATER, 3: E.STONE, 4: E.WOOD, 5: E.FIRE, 6: E.OIL, 7: E.ACID, 8: E.POWDER, 9: E.LAVA, 0: E.GLASS,
-      e: E.EMPTY, m: E.METEORT, v: E.VORTEXT, x: E.METAL, i: E.ICE, p: E.PLANT, a: E.SPOUT, u: E.HEATT, o: E.COOLT, k: E.SMOKE, t: E.STEAM };
+      e: E.EMPTY, m: E.METEORT, v: E.VORTEXT, x: E.METAL, i: E.ICE, p: E.PLANT, a: E.SPOUT, u: E.HEATT, o: E.COOLT,
+      j: E.BATTERY, l: E.LAMP, q: E.SPARKT, w: E.WINDT, f: E.SALT, k: E.SMOKE, t: E.STEAM };
     for (const [key, id] of Object.entries(map)) {
       await page.keyboard.press(key);
       expect(await sb.run(() => sandbox.state().tool), `key ${key}`).toBe(id);
