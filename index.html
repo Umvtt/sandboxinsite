@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Micro Sandbox</title>
+<style>
+:root{
+  --panel:rgba(15,18,26,.56);
+  --panel-hi:rgba(255,255,255,.06);
+  --line:rgba(255,255,255,.09);
+  --text:#dde2ec;
+  --dim:#7f889a;
+  --accent:#7cc4ff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#07080c;color:var(--text);
+  font:12px/1.35 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  user-select:none;-webkit-user-select:none}
+#stage{position:fixed;inset:0;overflow:hidden;will-change:transform}
+#c,#glow{position:absolute;left:0;top:0;image-rendering:pixelated;image-rendering:crisp-edges}
+#c{cursor:none;touch-action:none}
+#glow{pointer-events:none;mix-blend-mode:screen;opacity:.9}
+#glow.off{display:none}
+#flash{position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:radial-gradient(circle at var(--fx,50%) var(--fy,50%),rgba(255,236,200,.85),rgba(255,140,40,.22) 35%,transparent 65%)}
+#cursor{position:fixed;left:-200px;top:-200px;pointer-events:none;border-radius:50%;z-index:5;
+  border:1px solid rgba(255,255,255,.6);box-shadow:0 0 0 1px rgba(0,0,0,.4),inset 0 0 0 1px rgba(0,0,0,.25);
+  transform:translate(-50%,-50%);transition:width .08s,height .08s,border-color .15s}
+#cursor::after{content:"";position:absolute;left:50%;top:50%;width:2px;height:2px;margin:-1px 0 0 -1px;border-radius:50%;background:rgba(255,255,255,.8)}
+#cursor.vortex{border-style:dashed;border-color:rgba(150,200,255,.8);animation:spin 1.4s linear infinite}
+#cursor.vortex.repel{border-color:rgba(255,150,200,.8);animation-direction:reverse}
+#cursor.meteor{border-color:rgba(255,150,70,.9);border-width:2px}
+#cursor.erase{border-color:rgba(255,110,110,.8)}
+#cursor.hidden{display:none}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+.panel{position:fixed;z-index:10;background:var(--panel);
+  backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);
+  border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 12px 32px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.05);
+  transition:opacity .25s ease,transform .25s ease}
+body.hide-ui .panel{opacity:0;pointer-events:none;transform:translateY(-6px)}
+body.hide-ui #dock{transform:translate(-50%,6px)}
+
+#palette{left:12px;top:12px;width:232px;padding:12px 12px 10px;max-height:calc(100% - 92px);overflow-y:auto;scrollbar-width:thin}
+#palette::-webkit-scrollbar{width:6px}
+#palette::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
+.brand{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.brand .dot{width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,#ffcf6b,#ff6a3d 50%,#46a8ff);box-shadow:0 0 10px rgba(255,140,60,.5)}
+.brand b{font-size:12px;letter-spacing:.18em;font-weight:700}
+.brand span{margin-left:auto;color:var(--dim);font-size:10px;letter-spacing:.08em}
+.group{margin-top:8px}
+.group h4{font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0 2px 5px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.sw{position:relative;display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:8px;cursor:pointer;
+  border:1px solid transparent;background:rgba(255,255,255,.025);color:var(--text);font:inherit;text-align:left;
+  transition:background .12s,border-color .12s,transform .08s}
+.sw:hover{background:var(--panel-hi)}
+.sw:active{transform:scale(.97)}
+.sw.on{border-color:rgba(124,196,255,.55);background:rgba(124,196,255,.12);box-shadow:0 0 0 1px rgba(124,196,255,.15),0 0 14px rgba(124,196,255,.12)}
+.sw i{flex:none;width:14px;height:14px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 1px 3px rgba(0,0,0,.4)}
+.sw em{font-style:normal;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sw kbd{font:600 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim);padding:2px 4px;border-radius:4px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.06)}
+.scenes{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.scenes button{font:inherit;color:var(--text);background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:8px;padding:6px 6px;cursor:pointer;text-align:left;transition:background .12s}
+.scenes button:hover{background:rgba(255,255,255,.08)}
+.hint{margin-top:10px;color:var(--dim);font-size:10px;line-height:1.55}
+.hint b{color:#aeb6c6;font-weight:600}
+
+#stats{right:12px;top:12px;padding:10px 12px;min-width:170px;font:11px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+#stats .row{display:flex;justify-content:space-between;gap:14px}
+#stats .row span:first-child{color:var(--dim)}
+#stats .big{font-size:20px;line-height:1.1;font-weight:700;letter-spacing:-.02em}
+#stats .big small{font-size:10px;color:var(--dim);font-weight:500;margin-left:3px}
+#fpsbar{height:3px;border-radius:2px;background:rgba(255,255,255,.07);margin:6px 0 6px;overflow:hidden}
+#fpsbar div{height:100%;width:0;background:linear-gradient(90deg,#ff5d5d,#ffc65d,#5dff9a);transition:width .3s}
+
+#dock{left:50%;bottom:12px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:7px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 24px)}
+.btn{font:inherit;color:var(--text);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:9px;
+  padding:6px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:background .12s,border-color .12s}
+.btn:hover{background:rgba(255,255,255,.09)}
+.btn.on{background:rgba(124,196,255,.15);border-color:rgba(124,196,255,.45)}
+.btn kbd{font:600 9px/1 ui-monospace,monospace;color:var(--dim)}
+.btn svg{width:13px;height:13px;fill:currentColor}
+.sep{width:1px;height:22px;background:var(--line);margin:0 2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{font:inherit;color:var(--dim);background:transparent;border:0;padding:6px 8px;cursor:pointer}
+.seg button.on{color:var(--text);background:rgba(124,196,255,.16)}
+.brush{display:inline-flex;align-items:center;gap:8px;padding:0 6px;color:var(--dim)}
+.brush output{color:var(--text);font:600 11px ui-monospace,monospace;min-width:22px;text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;width:110px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#dfe8f5;border:0;box-shadow:0 0 0 3px rgba(124,196,255,.25);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#dfe8f5;border:0;box-shadow:0 0 0 3px rgba(124,196,255,.25);cursor:pointer}
+#toast{position:fixed;left:50%;top:16px;transform:translate(-50%,-8px);z-index:20;padding:6px 12px;border-radius:10px;
+  background:rgba(15,18,26,.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);
+  font-size:11px;letter-spacing:.04em;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media (max-width:640px){
+  #palette{width:176px;padding:9px;max-height:calc(100% - 140px)}
+  .grid{grid-template-columns:1fr}
+  .sw kbd{display:none}
+  #stats{min-width:0;padding:8px 10px}
+  #stats .hide-sm{display:none}
+  input[type=range]{width:80px}
+}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <canvas id="glow"></canvas>
+  <div id="flash"></div>
+</div>
+<div id="cursor"></div>
+<div id="toast"></div>
+
+<aside id="palette" class="panel">
+  <div class="brand"><i class="dot"></i><b>SANDBOX</b><span>CA ENGINE</span></div>
+  <div id="groups"></div>
+  <div class="group">
+    <h4>Scenes</h4>
+    <div class="scenes" id="scenes"></div>
+  </div>
+  <div class="hint">
+    <b>LMB</b> paint · <b>RMB</b> erase<br>
+    <b>Wheel</b> / <b>[ ]</b> brush size<br>
+    <b>Vortex</b>: RMB or Shift repels<br>
+    <b>H</b> hide HUD · <b>B</b> bloom · <b>G</b> gravity
+  </div>
+</aside>
+
+<div id="stats" class="panel">
+  <div class="big"><span id="sFps">0</span><small>FPS</small></div>
+  <div id="fpsbar"><div></div></div>
+  <div class="row"><span>sim</span><span id="sTps">0 t/s</span></div>
+  <div class="row"><span>particles</span><span id="sCount">0</span></div>
+  <div class="row"><span>brush</span><span id="sBrush">5px</span></div>
+  <div class="row hide-sm"><span>grid</span><span id="sGrid">0×0</span></div>
+  <div class="row hide-sm"><span>hover</span><span id="sHover">—</span></div>
+  <div class="row"><span>state</span><span id="sState">running</span></div>
+</div>
+
+<div id="dock" class="panel">
+  <button class="btn" id="bPlay" title="Pause / Play (Space)"><svg viewBox="0 0 16 16" id="playIcon"><path d="M4 3h3v10H4zM9 3h3v10H9z"/></svg><span id="playTxt">Pause</span><kbd>SPC</kbd></button>
+  <button class="btn" id="bStep" title="Single step (S)"><svg viewBox="0 0 16 16"><path d="M3 3l7 5-7 5zM11 3h2v10h-2z"/></svg>Step<kbd>S</kbd></button>
+  <button class="btn" id="bClear" title="Clear canvas (C)"><svg viewBox="0 0 16 16"><path d="M5 2h6v1h3v2H2V3h3zM3 6h10l-1 8H4z"/></svg>Clear<kbd>C</kbd></button>
+  <div class="sep"></div>
+  <button class="btn" id="bGrav" title="Flip gravity (G)"><svg viewBox="0 0 16 16" id="gravIcon"><path d="M7 2h2v8h3l-4 4-4-4h3z"/></svg>Gravity<kbd>G</kbd></button>
+  <button class="btn on" id="bBloom" title="Bloom glow (B)">Bloom<kbd>B</kbd></button>
+  <div class="seg" id="speedSeg">
+    <button data-s="0.5">½×</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button>
+  </div>
+  <div class="sep"></div>
+  <label class="brush">Brush <input type="range" id="brush" min="1" max="25" value="5"><output id="brushOut">5</output></label>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ======================= Element definitions ======================= */
+const EMPTY=0,SAND=1,WATER=2,STONE=3,WOOD=4,FIRE=5,SMOKE=6,STEAM=7,OIL=8,ACID=9,
+      POWDER=10,LAVA=11,GLASS=12,METAL=13,ICE=14,PLANT=15,METEOR=16;
+const NE=17;
+const TOOL_METEOR=100, TOOL_VORTEX=101;
+const K_SOLID=1,K_POWDER=2,K_LIQUID=3,K_GAS=4;
+
+const EL=[];
+const kind=new Uint8Array(NE), dens=new Uint8Array(NE), disp=new Uint8Array(NE);
+const flam=new Float32Array(NE), dissolve=new Float32Array(NE), fillP=new Float32Array(NE);
+
+function def(id,o){
+  EL[id]=o; kind[id]=o.k; dens[id]=o.d||0; flam[id]=o.f||0; dissolve[id]=o.ac||0;
+  disp[id]=o.disp||0; fillP[id]=o.fill===undefined?1:o.fill;
+}
+def(EMPTY, {name:'Eraser',   k:0,       rgb:[30,34,44]});
+def(SAND,  {name:'Sand',     k:K_POWDER,d:90, ac:.12, fill:.45, rgb:[222,190,128], v:.14});
+def(WATER, {name:'Water',    k:K_LIQUID,d:40, disp:4, fill:.55, rgb:[38,116,226],  v:.08});
+def(STONE, {name:'Stone',    k:K_SOLID, d:255,ac:.06,           rgb:[110,113,124], v:.2});
+def(WOOD,  {name:'Wood',     k:K_SOLID, d:255,f:.035,ac:.14,    rgb:[124,82,46],   v:.18});
+def(FIRE,  {name:'Fire',     k:K_GAS,   d:0,  fill:.5,          rgb:[255,128,24],  v:0});
+def(SMOKE, {name:'Smoke',    k:K_GAS,   d:2,  fill:.35,         rgb:[96,96,108],   v:.12});
+def(STEAM, {name:'Steam',    k:K_GAS,   d:1,  fill:.35,         rgb:[206,222,240], v:.06});
+def(OIL,   {name:'Oil',      k:K_LIQUID,d:30, disp:3, f:.3, fill:.55, rgb:[92,62,30], v:.1});
+def(ACID,  {name:'Acid',     k:K_LIQUID,d:45, disp:3, fill:.55, rgb:[120,236,60],  v:.08});
+def(POWDER,{name:'Gunpowder',k:K_POWDER,d:85, f:.7, ac:.15, fill:.45, rgb:[66,64,72], v:.22});
+def(LAVA,  {name:'Lava',     k:K_LIQUID,d:70, disp:1, fill:.55, rgb:[255,96,16],   v:.1});
+def(GLASS, {name:'Glass',    k:K_SOLID, d:255,                  rgb:[150,226,240], v:.08});
+def(METAL, {name:'Metal',    k:K_SOLID, d:255,ac:.025,          rgb:[150,158,174], v:.1});
+def(ICE,   {name:'Ice',      k:K_SOLID, d:255,ac:.15,           rgb:[178,226,252], v:.07});
+def(PLANT, {name:'Plant',    k:K_SOLID, d:255,f:.06,ac:.2,      rgb:[64,172,74],   v:.2});
+def(METEOR,{name:'Meteor',   k:K_SOLID, d:255,                  rgb:[255,236,190], v:0});
+
+const TOOLS={};
+TOOLS[TOOL_METEOR]={name:'Meteor',rgb:[255,120,50]};
+TOOLS[TOOL_VORTEX]={name:'Vortex',rgb:[120,170,255]};
+
+const KEYMAP={'1':SAND,'2':WATER,'3':STONE,'4':WOOD,'5':FIRE,'6':OIL,'7':ACID,'8':POWDER,'9':LAVA,'0':GLASS,
+  'e':EMPTY,'m':TOOL_METEOR,'v':TOOL_VORTEX,'x':METAL,'i':ICE,'p':PLANT,'k':SMOKE,'t':STEAM};
+const KEYOF={}; for(const k in KEYMAP) KEYOF[KEYMAP[k]]=k.toUpperCase();
+
+const GROUPS=[
+  {name:'Powders', items:[SAND,POWDER]},
+  {name:'Liquids', items:[WATER,OIL,ACID,LAVA]},
+  {name:'Solids',  items:[STONE,WOOD,GLASS,METAL,ICE,PLANT]},
+  {name:'Gases & Energy', items:[FIRE,SMOKE,STEAM]},
+  {name:'Special Tools', items:[EMPTY,TOOL_METEOR,TOOL_VORTEX]},
+];
+
+const DX8=[-1,0,1,-1,1,-1,0,1], DY8=[-1,-1,-1,0,0,1,1,1];
+const DX4=[0,0,-1,1], DY4=[1,-1,0,0];
+
+/* ======================= RNG (xorshift32) ======================= */
+let seed=(Math.random()*0x7fffffff|0)||12345;
+function rnd(){ seed^=seed<<13; seed^=seed>>>17; seed^=seed<<5; return seed>>>0; }
+function r01(){ return rnd()*2.3283064365386963e-10; }
+
+/* ======================= Colour helpers & palettes ======================= */
+const clamp255=v=>v<0?0:v>255?255:v|0;
+const pack=(r,g,b)=>((255<<24)|(clamp255(b)<<16)|(clamp255(g)<<8)|clamp255(r))>>>0;
+const TAU=Math.PI*2;
+
+const pal=new Uint32Array(NE*256), palHi=new Uint32Array(NE*256);
+const palW=new Uint32Array(256), palO=new Uint32Array(256), palA=new Uint32Array(256), glowA=new Uint32Array(256);
+const palL=new Uint32Array(256), firePal=new Uint32Array(256), palBurn=new Uint32Array(256);
+
+(function buildPalettes(){
+  for(let e=0;e<NE;e++){
+    const [r,g,b]=EL[e].rgb, v=EL[e].v||0;
+    for(let c=0;c<256;c++){
+      let f=1+((c/255)-.5)*2*v, tr=0,tg=0,tb=0;
+      if(e===SAND){ if(c<18)f*=.78; else if(c>246)f*=1.12; tr=(c&7)-3; }
+      else if(e===STONE){ if(c<22)f*=.72; else if(c>240)f*=1.18; }
+      else if(e===WOOD){ f=1+Math.sin(c*.35)*v*.8+((c&3)-1.5)*.02; }
+      else if(e===POWDER){ if(c>228){tr=tg=tb=70;} else if(c<20) f*=.7; }
+      else if(e===METAL){ f=1+Math.sin(c*.08)*v+((c&1)?.03:-.03); }
+      else if(e===PLANT){ tg=(c&15)-6; tr=((c>>4)&7)-3; }
+      else if(e===ICE){ if(c>238)f*=1.15; }
+      pal[(e<<8)|c]=pack(r*f+tr,g*f+tg,b*f+tb);
+      palHi[(e<<8)|c]=pack(r*f*1.17+tr+8,g*f*1.17+tg+8,b*f*1.17+tb+8);
+    }
+  }
+  for(let c=0;c<256;c++){
+    const p=c/256*TAU;
+    // water shimmer with sweeping sparkle
+    let f=.9+.08*Math.sin(p*2)+.04*Math.sin(p*5);
+    let wr=38*f, wg=116*f, wb=226*f;
+    if((c&63)<2){ wr+=70; wg+=80; wb+=30; }
+    palW[c]=pack(wr,wg,wb);
+    // oil: dark amber with iridescent sheen
+    palO[c]=pack(90+16*Math.sin(p*2),60+14*Math.sin(p*2+2.1),30+20*Math.sin(p*2+4.2));
+    // acid: luminous green
+    const a=.84+.16*Math.sin(p*3);
+    palA[c]=pack(110*a+((c&63)<2?60:0),236*a,56*a);
+    glowA[c]=pack(30*a,90*a,16*a);
+    // lava: pulsing heat
+    const h=.5+.5*Math.sin(p);
+    let lr=170+85*h, lg=28+150*h*h, lb=6+40*h*h*h;
+    if(h>.93){ lg+=40; lb+=60; }
+    palL[c]=pack(lr,lg,lb);
+  }
+  // fire gradient
+  const stops=[[0,[70,8,2]],[70,[190,34,4]],[140,[250,104,12]],[200,[255,190,50]],[245,[255,244,180]],[255,[255,255,230]]];
+  for(let c=0;c<256;c++){
+    let k=0; while(k<stops.length-2&&c>stops[k+1][0])k++;
+    const [a0,c0]=stops[k],[a1,c1]=stops[k+1], t=Math.min(1,Math.max(0,(c-a0)/(a1-a0)));
+    firePal[c]=pack(c0[0]+(c1[0]-c0[0])*t,c0[1]+(c1[1]-c0[1])*t,c0[2]+(c1[2]-c0[2])*t);
+  }
+  // burning wood: charred & glowing
+  for(let c=0;c<256;c++){
+    const f=.55+.25*Math.sin(c*.35);
+    palBurn[c]=pack(124*f+90,82*f+20,46*f);
+  }
+})();
+
+/* ======================= Grid state ======================= */
+const canvas=document.getElementById('c'), glowC=document.getElementById('glow');
+const ctx=canvas.getContext('2d',{alpha:false}), gctx=glowC.getContext('2d');
+const stage=document.getElementById('stage'), flashEl=document.getElementById('flash');
+
+let W=0,H=0,N=0,S=4;
+let g,life,col,vx,vy,stamp;
+let bg32,bgR,bgG,bgB,img,buf,gimg,gbuf;
+let tick=0, down=1;
+
+function alloc(nw,nh){
+  const og=g,ol=life,oc=col,ow=W,oh=H;
+  W=nw;H=nh;N=W*H;
+  g=new Uint8Array(N); life=new Uint8Array(N); col=new Uint8Array(N);
+  vx=new Int8Array(N); vy=new Int8Array(N); stamp=new Uint8Array(N);
+  if(og){
+    const cw=Math.min(ow,W), ch=Math.min(oh,H);
+    for(let y=0;y<ch;y++){
+      const so=(oh-1-y)*ow, d=(H-1-y)*W;
+      for(let x=0;x<cw;x++){ g[d+x]=og[so+x]; life[d+x]=ol[so+x]; col[d+x]=oc[so+x]; }
+    }
+  }
+  canvas.width=W; canvas.height=H; glowC.width=W; glowC.height=H;
+  img=ctx.createImageData(W,H); buf=new Uint32Array(img.data.buffer);
+  gimg=gctx.createImageData(W,H); gbuf=new Uint32Array(gimg.data.buffer);
+  bg32=new Uint32Array(N); bgR=new Uint8Array(N); bgG=new Uint8Array(N); bgB=new Uint8Array(N);
+  for(let y=0;y<H;y++){
+    const t=y/(H-1);
+    for(let x=0;x<W;x++){
+      const i=y*W+x, dx=x/W-.5, dy=y/H-.5;
+      const vg=1-(dx*dx+dy*dy)*.7, n=(r01()-.5)*2.2;
+      const r=(15-8*t)*vg+n, gg=(19-10*t)*vg+n, b=(30-17*t)*vg+n*1.2;
+      bgR[i]=clamp255(r); bgG[i]=clamp255(gg); bgB[i]=clamp255(b);
+      bg32[i]=pack(r,gg,b);
+    }
+  }
+  document.getElementById('sGrid').textContent=W+'×'+H;
+}
+
+function layout(){
+  const vw=innerWidth, vh=innerHeight;
+  S=Math.max(2,Math.round(Math.sqrt(vw*vh/72000)));
+  const nw=Math.ceil(vw/S), nh=Math.ceil(vh/S);
+  if(nw!==W||nh!==H) alloc(nw,nh);
+  for(const c of [canvas,glowC]){ c.style.width=W*S+'px'; c.style.height=H*S+'px'; }
+  glowC.style.filter='blur('+(S*2.4).toFixed(1)+'px) brightness(1.25)';
+  updateCursor();
+}
+
+/* ======================= Cell primitives ======================= */
+function setCell(i,e){
+  g[i]=e; col[i]=rnd()&255; vx[i]=0; vy[i]=0; stamp[i]=tick;
+  switch(e){
+    case FIRE:  life[i]=18+rnd()%40; break;
+    case SMOKE: life[i]=110+rnd()%140; break;
+    case STEAM: life[i]=140+rnd()%110; break;
+    case WATER: case OIL: case ACID: case LAVA: life[i]=rnd()&1; break;
+    default: life[i]=0;
+  }
+}
+function clear(i){ g[i]=0; life[i]=0; vx[i]=0; vy[i]=0; stamp[i]=tick; }
+function swap(a,b){
+  let t=g[a]; g[a]=g[b]; g[b]=t;
+  t=life[a]; life[a]=life[b]; life[b]=t;
+  t=col[a]; col[a]=col[b]; col[b]=t;
+  t=vx[a]; vx[a]=vx[b]; vx[b]=t;
+  t=vy[a]; vy[a]=vy[b]; vy[b]=t;
+  stamp[a]=tick; stamp[b]=tick;
+}
+const clampV=v=>v>12?12:v<-12?-12:v;
+
+function tryMove(e,i,j){
+  const t=g[j];
+  if(t===0){ swap(i,j); return true; }
+  const kt=kind[t];
+  if(kt===K_GAS){ if(kind[e]!==K_GAS){ swap(i,j); return true; } return false; }
+  if(kt===K_LIQUID && dens[e]>dens[t] && r01()<(kind[e]===K_LIQUID?.35:.6)){ swap(i,j); return true; }
+  return false;
+}
+
+/* ======================= Behaviours ======================= */
+function powder(i,x,y,e){
+  const ny=y+down; if(ny<0||ny>=H) return;
+  const j=i+down*W;
+  if(tryMove(e,i,j)) return;
+  const d=(rnd()&1)?1:-1;
+  let nx=x+d; if(nx>=0&&nx<W&&tryMove(e,i,j+d)) return;
+  nx=x-d; if(nx>=0&&nx<W&&tryMove(e,i,j-d)) return;
+}
+
+function liquid(i,x,y,e){
+  const ny=y+down, dir=(life[i]&1)?1:-1;
+  if(ny>=0&&ny<H){
+    const j=i+down*W;
+    if(tryMove(e,i,j)) return;
+    let nx=x+dir; if(nx>=0&&nx<W&&tryMove(e,i,j+dir)) return;
+    nx=x-dir; if(nx>=0&&nx<W&&tryMove(e,i,j-dir)) return;
+  }
+  const n=disp[e]; let cur=i,cx=x;
+  for(let s=0;s<n;s++){
+    const nx=cx+dir; if(nx<0||nx>=W) break;
+    const nj=cur+dir, t=g[nj];
+    if(t===0||kind[t]===K_GAS){
+      swap(cur,nj); cur=nj; cx=nx;
+      if(ny>=0&&ny<H&&g[nj+down*W]===0) break;
+    } else break;
+  }
+  if(cur===i) life[i]^=1;
+}
+
+function gasMove(i,x,y,e){
+  const r=rnd()&7;
+  let nx=x, ny=y-down;
+  if(r>=4&&r<6) nx=x+((r&1)?1:-1);
+  else if(r>=6){ nx=x+((r&1)?1:-1); ny=y; }
+  if(nx<0||nx>=W||ny<0||ny>=H) return i;
+  const j=ny*W+nx, t=g[j];
+  if(t===0){ swap(i,j); return j; }
+  const kt=kind[t];
+  if(ny!==y){
+    if(kt===K_LIQUID&&(rnd()&1)){ swap(i,j); return j; }
+    if(kt===K_GAS&&t!==e&&t!==FIRE&&(rnd()&3)===0){ swap(i,j); return j; }
+  }
+  return i;
+}
+
+function ballistic(i,x,y,e){
+  const dx=vx[i], dy=vy[i];
+  const steps=Math.max(dx<0?-dx:dx, dy<0?-dy:dy);
+  const isGas=kind[e]===K_GAS;
+  let ci=i, blocked=false;
+  for(let s=1;s<=steps;s++){
+    const nx=x+Math.round(dx*s/steps), ny=y+Math.round(dy*s/steps);
+    if(nx<0||nx>=W||ny<0||ny>=H){ blocked=true; break; }
+    const j=ny*W+nx; if(j===ci) continue;
+    const t=g[j];
+    if(t===0||(!isGas&&kind[t]===K_GAS)){ swap(ci,j); ci=j; }
+    else if(!isGas&&kind[t]===K_LIQUID&&dens[e]>dens[t]){ swap(ci,j); ci=j; blocked=true; break; }
+    else { blocked=true; break; }
+  }
+  let nvx=vx[ci], nvy=vy[ci];
+  if(blocked){ nvx=(nvx/2)|0; nvy=(nvy/2)|0; }
+  else if(isGas){ if((rnd()&3)===0){ nvx-=Math.sign(nvx); nvy-=Math.sign(nvy); } }
+  else { if(rnd()&1) nvy+=down; if((rnd()&7)===0) nvx-=Math.sign(nvx); }
+  vx[ci]=clampV(nvx); vy[ci]=clampV(nvy);
+  stamp[ci]=tick;
+}
+
+function ignite(j,t){
+  switch(t){
+    case WOOD:   if(!life[j]) life[j]=1; break;
+    case POWDER: if(!life[j]) life[j]=1; break;
+    case OIL:    setCell(j,FIRE); life[j]=55+rnd()%70; break;
+    case PLANT:  setCell(j,FIRE); life[j]=25+rnd()%30; break;
+  }
+}
+
+function fire(i,x,y){
+  const L=life[i];
+  if(L<=1){ if(r01()<.3) setCell(i,SMOKE); else clear(i); return; }
+  life[i]=L-1;
+  for(let n=0;n<8;n++){
+    const nx=x+DX8[n], ny=y+DY8[n];
+    if(nx<0||nx>=W||ny<0||ny>=H) continue;
+    const j=ny*W+nx, t=g[j];
+    if(t===WATER){ setCell(i,STEAM); if(r01()<.3) setCell(j,STEAM); return; }
+    if(t===ICE){ if(r01()<.05) setCell(j,WATER); continue; }
+    const f=flam[t]; if(f>0&&r01()<f) ignite(j,t);
+  }
+  if(vx[i]|vy[i]){ ballistic(i,x,y,FIRE); return; }
+  if(r01()<.72){
+    const uy=y-down;
+    if(uy>=0&&uy<H){
+      const nx=x+(rnd()%3)-1;
+      if(nx>=0&&nx<W){
+        const j=uy*W+nx, t=g[j];
+        if(t===0||(t===SMOKE&&(rnd()&1))){ swap(i,j); return; }
+      }
+    }
+  } else {
+    const nx=x+((rnd()&1)?1:-1);
+    if(nx>=0&&nx<W&&g[i-x+nx]===0) swap(i,i-x+nx);
+  }
+}
+
+function smoke(i,x,y){
+  if((rnd()&1)&&--life[i]===0){ clear(i); return; }
+  if(vx[i]|vy[i]){ ballistic(i,x,y,SMOKE); return; }
+  if(r01()<.75) gasMove(i,x,y,SMOKE);
+}
+
+function steam(i,x,y){
+  const L=life[i];
+  if(L<=1){ if(r01()<.65) setCell(i,WATER); else clear(i); return; }
+  life[i]=L-1;
+  if(vx[i]|vy[i]){ ballistic(i,x,y,STEAM); return; }
+  const uy=y-down;
+  const ceil=uy<0||uy>=H||kind[g[uy*W+x]]===K_SOLID;
+  const nearTop=down>0?y<H*.12:y>H*.88;
+  if((ceil&&r01()<.006)||(nearTop&&r01()<.003)){ setCell(i,WATER); return; }
+  const j=gasMove(i,x,y,STEAM);
+  if(j!==i&&(rnd()&1)) gasMove(j,j%W,(j/W)|0,STEAM);
+}
+
+function burnWood(i,x,y){
+  if(life[i]<250) life[i]++;
+  const k=rnd()&7, nx=x+DX8[k], ny=y+DY8[k];
+  if(nx>=0&&nx<W&&ny>=0&&ny<H){
+    const j=ny*W+nx, t=g[j];
+    if(t===WATER){ life[i]=0; setCell(j,STEAM); return; }
+    if(t===0){
+      if(r01()<.1){ if(r01()<.85){ setCell(j,FIRE); life[j]=6+rnd()%18; } else setCell(j,SMOKE); }
+    } else if(t===ICE){ if(r01()<.05) setCell(j,WATER); }
+    else if(flam[t]>0&&r01()<.03) ignite(j,t);
+  }
+  if(life[i]>40&&r01()<.0035){ if(r01()<.5) setCell(i,FIRE); else setCell(i,SMOKE); }
+}
+
+function lava(i,x,y){
+  for(let n=0;n<4;n++){
+    const nx=x+DX4[n], ny=y+DY4[n];
+    if(nx<0||nx>=W||ny<0||ny>=H) continue;
+    const j=ny*W+nx, t=g[j];
+    if(t===WATER){ setCell(i,STONE); setCell(j,STEAM); return; }
+    if(t===SAND){ if(r01()<.02) setCell(j,GLASS); }
+    else if(t===ICE){ setCell(j,r01()<.5?WATER:STEAM); }
+    else if(flam[t]>0&&r01()<Math.min(1,flam[t]*3)) ignite(j,t);
+  }
+  const uy=y-down;
+  if(uy>=0&&uy<H){
+    const j=uy*W+x;
+    if(g[j]===0){
+      const r=r01();
+      if(r<.0025){ setCell(j,FIRE); life[j]=10+rnd()%16; vy[j]=-down*(2+rnd()%3); vx[j]=(rnd()%3)-1; }
+      else if(r<.0035) setCell(j,SMOKE);
+    }
+  }
+  if(vx[i]|vy[i]){ ballistic(i,x,y,LAVA); return; }
+  if(r01()<.45) liquid(i,x,y,LAVA);
+}
+
+function acid(i,x,y){
+  for(let n=0;n<2;n++){
+    let nx=x, ny=y;
+    if(n===0) ny=y+down;
+    else { const r=rnd()%3; if(r===0) nx=x-1; else if(r===1) nx=x+1; else ny=y-down; }
+    if(nx<0||nx>=W||ny<0||ny>=H) continue;
+    const j=ny*W+nx, t=g[j], dr=dissolve[t];
+    if(dr>0&&r01()<dr){
+      if(t===WOOD&&life[j]) { clear(j); } else if(r01()<.35) setCell(j,SMOKE); else clear(j);
+      if(r01()<.5) setCell(i,SMOKE); else clear(i);
+      return true;
+    }
+    if(t===WATER&&r01()<.008){ setCell(i,WATER); return true; }
+  }
+  return false;
+}
+
+function ice(i,x,y){
+  const k=rnd()&7, nx=x+DX8[k], ny=y+DY8[k];
+  if(nx<0||nx>=W||ny<0||ny>=H) return;
+  const j=ny*W+nx, t=g[j];
+  if(t===WATER){ if(r01()<.12) setCell(j,ICE); }
+  else if(t===FIRE||t===LAVA||t===STEAM) setCell(i,WATER);
+}
+
+function plant(i,x,y){
+  const k=rnd()&7, nx=x+DX8[k], ny=y+DY8[k];
+  if(nx<0||nx>=W||ny<0||ny>=H) return;
+  const j=ny*W+nx;
+  if(g[j]===WATER&&r01()<.3) setCell(j,PLANT);
+}
+
+function meteor(i,x,y){
+  let ci=i,cx=x,cy=y;
+  for(let s=0;s<3;s++){
+    const ny=cy+down; let nx=cx;
+    if(vx[ci]&&(rnd()%3)===0) nx+=vx[ci];
+    if(nx<0||nx>=W) nx=cx;
+    if(ny<0||ny>=H){ clear(ci); explode(cx,cy,12,10); return; }
+    const j=ny*W+nx, t=g[j];
+    if(t===0||kind[t]===K_GAS){
+      swap(ci,j);
+      if(g[ci]===0&&r01()<.85){
+        if(r01()<.6){ setCell(ci,FIRE); life[ci]=8+rnd()%16; } else setCell(ci,SMOKE);
+      }
+      ci=j; cx=nx; cy=ny;
+    } else { clear(ci); explode(nx,ny,12,10); return; }
+  }
+}
+
+/* ======================= Explosions & forces ======================= */
+let shake=0, flash=0;
+function explode(cx,cy,R,power){
+  const R2=R*R, OR=Math.ceil(R*2.2), OR2=OR*OR;
+  for(let dy=-OR;dy<=OR;dy++){
+    const y=cy+dy; if(y<0||y>=H) continue;
+    for(let dx=-OR;dx<=OR;dx++){
+      const x=cx+dx; if(x<0||x>=W) continue;
+      const d2=dx*dx+dy*dy; if(d2>OR2) continue;
+      const j=y*W+x, t=g[j];
+      if(d2<=R2&&(d2<R2*.6||r01()<.7)){
+        if(t===METAL){ if(r01()<.85) continue; }
+        else if(t===STONE){ if(d2>R2*.35&&r01()<.55) continue; }
+        else if(t===GLASS){ setCell(j,SAND); continue; }
+        else if(t===POWDER){ if(!life[j]&&r01()<.6){ life[j]=1+(rnd()&3); continue; } }
+        else if(t===WATER){ if(r01()<.5) setCell(j,STEAM); continue; }
+        else if(t===WOOD){ if(r01()<.4){ if(!life[j]) life[j]=1; continue; } }
+        else if(t===METEOR) continue;
+        const r=r01();
+        if(r<.5){ setCell(j,FIRE); life[j]=8+rnd()%30; }
+        else if(r<.72) setCell(j,SMOKE);
+        else { clear(j); continue; }
+        const d=Math.sqrt(d2)||1, m=1+power*.45*r01();
+        vx[j]=clampV(Math.round(dx/d*m)); vy[j]=clampV(Math.round(dy/d*m-down*r01()*2));
+      } else if(t!==0&&kind[t]>=K_POWDER&&t!==METEOR){
+        const d=Math.sqrt(d2)||1, f=power*(1-d/OR)*(.6+.4*r01());
+        vx[j]=clampV(Math.round(dx/d*f)); vy[j]=clampV(Math.round(dy/d*f-down*f*.4));
+        if(t===POWDER&&!life[j]&&r01()<.2) life[j]=2;
+      } else if(t===WOOD&&d2<=R2*2&&r01()<.2&&!life[j]) life[j]=1;
+    }
+  }
+  shake=Math.min(14,shake+R*.55);
+  if(R>=7){
+    flash=Math.min(.85,flash+R/22);
+    flashEl.style.setProperty('--fx',((cx+.5)/W*100).toFixed(1)+'%');
+    flashEl.style.setProperty('--fy',((cy+.5)/H*100).toFixed(1)+'%');
+  }
+}
+
+function vortex(cx,cy,R,repel){
+  const R2=R*R, s=repel?-1:1;
+  for(let dy=-R;dy<=R;dy++){
+    const y=cy+dy; if(y<0||y>=H) continue;
+    for(let dx=-R;dx<=R;dx++){
+      const x=cx+dx; if(x<0||x>=W) continue;
+      const d2=dx*dx+dy*dy; if(d2>R2) continue;
+      const j=y*W+x, t=g[j];
+      if(kind[t]<K_POWDER||t===METEOR) continue;
+      const d=Math.sqrt(d2);
+      if(d<1.2&&!repel){ vx[j]=0; vy[j]=0; continue; }
+      const nx=-dx/(d||1), ny=-dy/(d||1), fall=1-d/R;
+      const pull=(1.2+2.2*fall)*s, sw=2.4*(.35+fall);
+      vx[j]=clampV(Math.floor(nx*pull-ny*sw+r01()));
+      vy[j]=clampV(Math.floor(ny*pull+nx*sw+r01()));
+    }
+  }
+}
+
+/* ======================= Main simulation step ======================= */
+function step(){
+  if(++tick>255){ stamp.fill(0); tick=1; }
+  const yS=down>0?H-1:0, yE=down>0?-1:H, yI=-down;
+  for(let y=yS;y!==yE;y+=yI){
+    const ltr=(rnd()&1)===0, row=y*W;
+    for(let k=0;k<W;k++){
+      const x=ltr?k:W-1-k, i=row+x, e=g[i];
+      if(e===0||stamp[i]===tick) continue;
+      switch(e){
+        case STONE: case GLASS: case METAL: break;
+        case SAND:
+          if(vx[i]|vy[i]) ballistic(i,x,y,e); else powder(i,x,y,e);
+          break;
+        case POWDER:
+          if(life[i]&&++life[i]>4){ clear(i); explode(x,y,4+rnd()%3,5); break; }
+          if(vx[i]|vy[i]) ballistic(i,x,y,e); else powder(i,x,y,e);
+          break;
+        case WATER: case OIL:
+          if(vx[i]|vy[i]) ballistic(i,x,y,e); else liquid(i,x,y,e);
+          break;
+        case ACID:
+          if(vx[i]|vy[i]) ballistic(i,x,y,e); else if(!acid(i,x,y)) liquid(i,x,y,e);
+          break;
+        case LAVA:  lava(i,x,y); break;
+        case FIRE:  fire(i,x,y); break;
+        case SMOKE: smoke(i,x,y); break;
+        case STEAM: steam(i,x,y); break;
+        case WOOD:  if(life[i]) burnWood(i,x,y); break;
+        case ICE:   if((rnd()&15)===0) ice(i,x,y); break;
+        case PLANT: if((rnd()&15)===0) plant(i,x,y); break;
+        case METEOR: meteor(i,x,y); break;
+      }
+    }
+  }
+}
+
+/* ======================= Rendering ======================= */
+let bloom=true, frameNo=0, particleCount=0;
+function render(){
+  const bl=bloom, wS=(frameNo*2)&255, lS=frameNo&255, dW=down*W;
+  let count=0;
+  for(let i=0;i<N;i++){
+    const e=g[i];
+    if(e===0){ buf[i]=bg32[i]; if(bl) gbuf[i]=0; continue; }
+    count++;
+    let c, gc=0;
+    switch(e){
+      case WATER: c=palW[(col[i]+wS)&255]; break;
+      case OIL:   c=palO[(col[i]+wS)&255]; break;
+      case ACID:  { const k=(col[i]+wS)&255; c=palA[k]; gc=glowA[k]; } break;
+      case LAVA:  c=palL[(col[i]+lS)&255]; gc=c; break;
+      case FIRE:  { let h=life[i]*6+(rnd()&63); if(h>255) h=255; c=firePal[h]; gc=c; } break;
+      case METEOR: c=firePal[235+(rnd()&15)]; gc=c; break;
+      case SMOKE: case STEAM: {
+        const rgb=EL[e].rgb, L=life[i];
+        let a=e===SMOKE?L/170:L/120; if(a>1) a=1; a*=e===SMOKE?.78:.62;
+        const v=((col[i]&15)-7)*1.5;
+        const r=bgR[i], gg=bgG[i], b=bgB[i];
+        c=pack(r+(rgb[0]+v-r)*a, gg+(rgb[1]+v-gg)*a, b+(rgb[2]+v-b)*a);
+      } break;
+      case GLASS: {
+        const cc=col[i], a=.4+(cc&15)*.008, r=bgR[i], gg=bgG[i], b=bgB[i];
+        const j=i-dW, hi=(j>=0&&j<N&&g[j]===0)||cc>247?50:0;
+        c=pack(r+(150+hi-r)*a, gg+(226+hi-gg)*a, b+(240+hi-b)*a);
+      } break;
+      case WOOD:
+        if(life[i]){
+          if((rnd()&3)===0){ c=firePal[110+(rnd()&127)]; gc=c; }
+          else { c=palBurn[col[i]]; gc=firePal[60+(rnd()&63)]; }
+          break;
+        }
+        // fallthrough
+      default: {
+        const k=(e<<8)|col[i];
+        if(kind[e]===K_SOLID){ const j=i-dW; c=(j>=0&&j<N&&g[j]===0)?palHi[k]:pal[k]; }
+        else c=pal[k];
+      }
+    }
+    buf[i]=c;
+    if(bl) gbuf[i]=gc;
+  }
+  particleCount=count;
+  ctx.putImageData(img,0,0);
+  if(bl) gctx.putImageData(gimg,0,0);
+}
+
+/* ======================= Input & tools ======================= */
+let tool=SAND, brush=5, paused=false, stepReq=false, speed=1, meteorCd=0;
+const ptr={x:-1,y:-1,lx:0,ly:0,cx:-999,cy:-999,down:false,btn:0,shift:false,over:false};
+const cursorEl=document.getElementById('cursor');
+
+function paintAt(cx,cy,r,e){
+  const rr=(r-.5)*(r-.5), lim=r-1;
+  for(let dy=-lim;dy<=lim;dy++){
+    const y=cy+dy; if(y<0||y>=H) continue;
+    for(let dx=-lim;dx<=lim;dx++){
+      if(dx*dx+dy*dy>rr) continue;
+      const x=cx+dx; if(x<0||x>=W) continue;
+      const j=y*W+x, t=g[j];
+      if(e===EMPTY){ if(t) clear(j); }
+      else if(t===0||(kind[t]===K_GAS&&kind[e]!==K_GAS)){
+        const p=fillP[e]; if(p>=1||r01()<p) setCell(j,e);
+      }
+    }
+  }
+}
+function paintLine(x0,y0,x1,y1,r,e){
+  const dx=Math.abs(x1-x0), dy=-Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1;
+  const stride=Math.max(1,r>>1);
+  let err=dx+dy, n=0;
+  for(;;){
+    if(n++%stride===0) paintAt(x0,y0,r,e);
+    if(x0===x1&&y0===y1) break;
+    const e2=2*err;
+    if(e2>=dy){ err+=dy; x0+=sx; }
+    if(e2<=dx){ err+=dx; y0+=sy; }
+  }
+  paintAt(x1,y1,r,e);
+}
+function activeElement(){ return ptr.btn===2?EMPTY:tool; }
+function isElementTool(t){ return t<NE; }
+
+function spawnMeteor(){
+  const sx=Math.max(0,Math.min(W-1,ptr.x+((rnd()%(brush*2+1))-brush)));
+  const sy=down>0?0:H-1, i=sy*W+sx;
+  if(g[i]!==0&&kind[g[i]]!==K_GAS) return;
+  setCell(i,METEOR); vx[i]=(rnd()%3)-1;
+}
+
+function applyHeldTools(){
+  if(!ptr.down) return;
+  if(tool===TOOL_VORTEX){ vortex(ptr.x,ptr.y,brush*2+8,ptr.btn===2||ptr.shift); return; }
+  if(tool===TOOL_METEOR&&ptr.btn!==2){ if(--meteorCd<=0){ spawnMeteor(); meteorCd=10; } return; }
+}
+
+function toCell(ev){
+  return [Math.max(0,Math.min(W-1,Math.floor(ev.clientX/S))), Math.max(0,Math.min(H-1,Math.floor(ev.clientY/S)))];
+}
+canvas.addEventListener('pointerdown',ev=>{
+  ev.preventDefault();
+  canvas.setPointerCapture(ev.pointerId);
+  const [x,y]=toCell(ev);
+  ptr.x=ptr.lx=x; ptr.y=ptr.ly=y; ptr.down=true; ptr.btn=ev.button===2?2:0; ptr.shift=ev.shiftKey;
+  ptr.cx=ev.clientX; ptr.cy=ev.clientY;
+  if(tool===TOOL_METEOR&&ptr.btn!==2){ spawnMeteor(); meteorCd=10; }
+  else if(isElementTool(tool)||ptr.btn===2){ if(tool!==TOOL_VORTEX) paintAt(x,y,brush,activeElement()); }
+  updateCursor();
+});
+canvas.addEventListener('pointermove',ev=>{
+  const [x,y]=toCell(ev);
+  ptr.cx=ev.clientX; ptr.cy=ev.clientY; ptr.shift=ev.shiftKey; ptr.over=true;
+  ptr.x=x; ptr.y=y;
+  if(ptr.down&&tool!==TOOL_VORTEX&&(isElementTool(tool)||ptr.btn===2)){
+    paintLine(ptr.lx,ptr.ly,x,y,brush,activeElement());
+  }
+  ptr.lx=x; ptr.ly=y;
+  updateCursor();
+});
+const endDraw=()=>{ ptr.down=false; updateCursor(); };
+canvas.addEventListener('pointerup',endDraw);
+canvas.addEventListener('pointercancel',endDraw);
+canvas.addEventListener('pointerenter',()=>{ ptr.over=true; updateCursor(); });
+canvas.addEventListener('pointerleave',()=>{ ptr.over=false; updateCursor(); });
+canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
+addEventListener('wheel',ev=>{
+  if(ev.target!==canvas) return;
+  ev.preventDefault();
+  setBrush(brush+(ev.deltaY<0?1:-1));
+},{passive:false});
+
+function updateCursor(){
+  const c=cursorEl;
+  if(!ptr.over&&!ptr.down){ c.className='hidden'; return; }
+  const R=tool===TOOL_VORTEX?brush*2+8:Math.max(brush-.5,.5);
+  const d=Math.max(6,R*2*S);
+  c.style.width=d+'px'; c.style.height=d+'px';
+  c.style.left=ptr.cx+'px'; c.style.top=ptr.cy+'px';
+  let cls='';
+  if(tool===TOOL_VORTEX) cls='vortex'+((ptr.down&&(ptr.btn===2||ptr.shift))?' repel':'');
+  else if(tool===TOOL_METEOR) cls='meteor';
+  else if(tool===EMPTY||(ptr.down&&ptr.btn===2)) cls='erase';
+  c.className=cls;
+}
+
+/* ======================= Scenes ======================= */
+function clearAll(){ g.fill(0); life.fill(0); vx.fill(0); vy.fill(0); }
+function put(x,y,e,p){ x|=0; y|=0; if(x<0||x>=W||y<0||y>=H) return; if(p!==undefined&&r01()>p) return; setCell(y*W+x,e); }
+function rect(x0,y0,x1,y1,e,p){ for(let y=y0|0;y<=(y1|0);y++) for(let x=x0|0;x<=(x1|0);x++) put(x,y,e,p); }
+function rectEmpty(x0,y0,x1,y1,e,p){ for(let y=y0|0;y<=(y1|0);y++) for(let x=x0|0;x<=(x1|0);x++){ if(x>=0&&x<W&&y>=0&&y<H&&g[y*W+x]===0) put(x,y,e,p); } }
+function disc(cx,cy,r,e,p,onlyEmpty){
+  for(let y=-r;y<=r;y++) for(let x=-r;x<=r;x++){
+    if(x*x+y*y>r*r+r) continue;
+    const X=(cx+x)|0, Y=(cy+y)|0; if(X<0||X>=W||Y<0||Y>=H) continue;
+    if(onlyEmpty&&g[Y*W+X]!==0) continue;
+    put(X,Y,e,p);
+  }
+}
+function tree(x,gy,h){
+  rect(x,gy-h,x+1,gy-1,WOOD);
+  disc(x+.5,gy-h-2,Math.max(3,h*.45|0),PLANT,.85,true);
+}
+
+const SCENES={
+  'Volcano & Ocean'(){
+    const ox0=W*.56|0, ox1=W*.7|0, vcx=W*.26|0, peak=H*.3|0, base=Math.max(20,W*.24|0), land=H*.8, sea=H*.6|0;
+    for(let x=0;x<W;x++){
+      let gy;
+      if(x<ox0) gy=land+Math.sin(x*.09)*2;
+      else if(x<ox1) gy=land+(H-6-land)*((x-ox0)/(ox1-ox0));
+      else gy=H-6+Math.sin(x*.15)*1.5;
+      const dv=Math.abs(x-vcx);
+      if(dv<base) gy=Math.min(gy,peak+dv*(land-peak)/base+Math.sin(x*.7)*1.3);
+      gy|=0;
+      for(let y=gy;y<H;y++) put(x,y,STONE);
+      if(x>=ox0-6) for(let y=gy;y<gy+3&&y<H;y++) put(x,y,SAND);
+      if(x>=ox0) for(let y=sea;y<gy;y++) if(g[y*W+x]===0) put(x,y,WATER);
+    }
+    // conduit & magma chamber
+    rect(vcx-2,peak-1,vcx+2,land+4,LAVA);
+    disc(vcx,land+8,7,LAVA);
+    // crater spill
+    disc(vcx,peak-6,7,LAVA,.95,true);
+    // forest between volcano and beach
+    for(let x=vcx+base+4;x<ox0-6;x+=9+(rnd()%6)){
+      const gy=(land+Math.sin(x*.09)*2)|0;
+      tree(x,gy,8+rnd()%8);
+    }
+    // oil slick on the ocean
+    rectEmpty(ox1+10,sea-3,ox1+30,sea-1,OIL,.8);
+  },
+  'Acid Vat'(){
+    rect(0,H-4,W-1,H-1,STONE);
+    const x0=W*.3|0, x1=W*.7|0, y0=H*.55|0, y1=H-5;
+    rect(x0,y0,x0+1,y1,GLASS); rect(x1-1,y0,x1,y1,GLASS); rect(x0,y1-1,x1,y1,GLASS);
+    rect(x0+2,H*.66,x1-2,y1-2,ACID);
+    // funnel loaded with sand
+    const fc=W*.42|0, fy0=H*.08|0, fy1=H*.3|0, fw=Math.min(W*.1,40)|0;
+    for(let y=fy0;y<=fy1;y++){
+      const t=(y-fy0)/(fy1-fy0), w=(fw*(1-t)+2)|0;
+      put(fc-w-1,y,STONE); put(fc-w-2,y,STONE); put(fc+w+1,y,STONE); put(fc+w+2,y,STONE);
+      if(y<fy1-4) for(let x=fc-w;x<=fc+w;x++) put(x,y,SAND,.85);
+    }
+    // pillars dipping into the vat
+    rect(W*.5,H*.38,W*.5+4,H*.82,STONE);
+    rect(W*.6,H*.42,W*.6+3,H*.78,METAL);
+    rect(W*.47,H*.38,W*.65,H*.38+2,WOOD);
+    // gunpowder hopper on the right
+    const hx=W*.62|0, hy=H*.12|0;
+    rect(hx,hy,hx+1,hy+12,GLASS); rect(hx+16,hy,hx+17,hy+12,GLASS); rect(hx,hy+12,hx+17,hy+13,GLASS);
+    rect(hx+2,hy+3,hx+15,hy+11,POWDER);
+    // water tank on a stone shelf
+    rect(W*.78,H*.62,W*.95,H*.62+1,STONE);
+    rect(W*.78,H*.4,W*.78+1,H*.62,GLASS); rect(W*.95-1,H*.4,W*.95,H*.62,GLASS);
+    rect(W*.78+2,H*.45,W*.95-2,H*.62-1,WATER);
+  },
+  'Hourglass'(){
+    const cx=W/2|0, top=H*.07|0, bot=H*.84|0, mid=(top+bot)/2, half=(bot-top)/2;
+    const maxW=Math.min(W*.22,half*.85);
+    const wAt=y=>{ const t=Math.min(1,Math.abs(y-mid)/half); return (2+(maxW-2)*Math.pow(t,.75))|0; };
+    for(let y=top;y<=bot;y++){
+      const a=wAt(y-1), b=wAt(y), c=wAt(y+1);
+      const lo=Math.min(a,b,c), hi=Math.max(a,b,c)+2;
+      for(let d=lo;d<hi;d++){ put(cx-d,y,GLASS); put(cx+d,y,GLASS); }
+      if(y>top+1&&y<mid-4) for(let x=-lo+1;x<lo;x++) put(cx+x,y,SAND);
+    }
+    const capW=maxW+8|0;
+    rect(cx-capW,top-3,cx+capW,top,METAL);
+    rect(cx-capW,bot,cx+capW,bot+3,METAL);
+    rect(cx-capW,top,cx-capW+2,bot,WOOD);
+    rect(cx+capW-2,top,cx+capW,bot,WOOD);
+    toast('Tip: press G to flip the hourglass');
+  },
+  'Powder Keg'(){
+    const gy=H-8;
+    rect(0,gy,W-1,H-1,STONE); rect(0,gy-2,W-1,gy-1,SAND);
+    const hx=W*.55|0, hw=Math.min(60,W*.22|0), hh=Math.min(40,H*.28|0), fl=gy-3;
+    // cabin
+    rect(hx,fl-hh,hx+2,fl,WOOD); rect(hx+hw-2,fl-hh,hx+hw,fl,WOOD);
+    for(let k=0;k<=hw/2+3;k++){ put(hx-3+k,fl-hh-k*.6,WOOD); put(hx-3+k,fl-hh-k*.6+1,WOOD); put(hx+hw+3-k,fl-hh-k*.6,WOOD); put(hx+hw+3-k,fl-hh-k*.6+1,WOOD); }
+    rect(hx,fl-hh,hx+hw,fl-hh+1,WOOD);
+    // stash of gunpowder & oil barrel
+    for(let k=0;k<12;k++) rect(hx+4+k,fl-12+(k>6?k-6:6-k),hx+4+k,fl,POWDER);
+    const bx=hx+hw-16;
+    rect(bx,fl-14,bx+1,fl,METAL); rect(bx+10,fl-14,bx+11,fl,METAL); rect(bx,fl,bx+11,fl,METAL);
+    rect(bx+2,fl-12,bx+9,fl-1,OIL);
+    // gunpowder fuse trail leading left to a smouldering log
+    const fx=W*.12|0;
+    rect(fx+6,fl,hx-1,fl,POWDER);
+    rect(fx,fl-3,fx+5,fl,WOOD);
+    life[(fl-3)*W+fx]=1;
+    // oil puddle and water tower
+    rectEmpty(hx-30,fl-1,hx-10,fl-1,OIL);
+    const tx=W*.85|0;
+    rect(tx,gy-50,tx+1,gy-1,METAL); rect(tx+20,gy-50,tx+21,gy-1,METAL);
+    rect(tx-4,gy-52,tx+25,gy-51,METAL);
+    rect(tx-4,gy-75,tx-3,gy-53,GLASS); rect(tx+24,gy-75,tx+25,gy-53,GLASS);
+    rect(tx-2,gy-70,tx+23,gy-53,WATER);
+  }
+};
+
+function loadScene(name){
+  clearAll(); down=1; syncGravity();
+  SCENES[name]();
+  toast(name);
+}
+
+/* ======================= UI ======================= */
+const $=id=>document.getElementById(id);
+const swatchEls={};
+function toolName(t){ return t<NE?EL[t].name:TOOLS[t].name; }
+function toolColor(t){
+  if(t===EMPTY) return 'repeating-linear-gradient(45deg,#2a2f3a 0 3px,#444b5a 3px 6px)';
+  if(t===TOOL_METEOR) return 'radial-gradient(circle at 35% 35%,#fff3c4,#ff8a3d 45%,#7a1f08)';
+  if(t===TOOL_VORTEX) return 'conic-gradient(#7cc4ff,#a77cff,#4cf0d0,#7cc4ff)';
+  if(t===FIRE) return 'linear-gradient(0deg,#d8340a,#ffb43a 60%,#fff0b0)';
+  if(t===LAVA) return 'linear-gradient(135deg,#ffcb4d,#ff5a10 55%,#8a1a04)';
+  if(t===WATER) return 'linear-gradient(135deg,#6fb4ff,#2668d8)';
+  if(t===GLASS) return 'linear-gradient(135deg,rgba(220,250,255,.9),rgba(120,200,225,.45))';
+  if(t===STEAM) return 'linear-gradient(135deg,#f4f8ff,#a9bdd6)';
+  const [r,g,b]=EL[t].rgb; return 'rgb('+r+','+g+','+b+')';
+}
+(function buildUI(){
+  const host=$('groups');
+  for(const grp of GROUPS){
+    const gd=document.createElement('div'); gd.className='group';
+    gd.innerHTML='<h4>'+grp.name+'</h4>';
+    const grid=document.createElement('div'); grid.className='grid';
+    for(const t of grp.items){
+      const b=document.createElement('button'); b.className='sw'; b.title=toolName(t)+(KEYOF[t]?' ('+KEYOF[t]+')':'');
+      b.innerHTML='<i></i><em>'+toolName(t)+'</em>'+(KEYOF[t]?'<kbd>'+KEYOF[t]+'</kbd>':'');
+      b.firstChild.style.background=toolColor(t);
+      b.addEventListener('click',()=>select(t));
+      swatchEls[t]=b; grid.appendChild(b);
+    }
+    gd.appendChild(grid); host.appendChild(gd);
+  }
+  const sc=$('scenes');
+  for(const name in SCENES){
+    const b=document.createElement('button'); b.textContent=name;
+    b.addEventListener('click',()=>loadScene(name)); sc.appendChild(b);
+  }
+  $('bPlay').addEventListener('click',togglePause);
+  $('bStep').addEventListener('click',stepOnce);
+  $('bClear').addEventListener('click',()=>{ clearAll(); toast('Cleared'); });
+  $('bGrav').addEventListener('click',flipGravity);
+  $('bBloom').addEventListener('click',()=>{ toggleBloom(); bloomForced=true; });
+  $('brush').addEventListener('input',e=>setBrush(+e.target.value));
+  for(const b of $('speedSeg').children) b.addEventListener('click',()=>setSpeed(+b.dataset.s));
+})();
+
+function select(t){
+  tool=t;
+  for(const k in swatchEls) swatchEls[k].classList.toggle('on',+k===t);
+  updateCursor();
+}
+function setBrush(v){
+  brush=Math.max(1,Math.min(25,v|0));
+  $('brush').value=brush; $('brushOut').textContent=brush; $('sBrush').textContent=brush+'px';
+  updateCursor();
+}
+function setSpeed(s){
+  speed=s;
+  for(const b of $('speedSeg').children) b.classList.toggle('on',+b.dataset.s===s);
+}
+function togglePause(){
+  paused=!paused;
+  $('playTxt').textContent=paused?'Play':'Pause';
+  $('playIcon').innerHTML=paused?'<path d="M4 2l10 6-10 6z"/>':'<path d="M4 3h3v10H4zM9 3h3v10H9z"/>';
+  $('bPlay').classList.toggle('on',paused);
+}
+function stepOnce(){ if(!paused) togglePause(); stepReq=true; }
+function syncGravity(){
+  $('gravIcon').style.transform=down>0?'':'rotate(180deg)';
+  $('bGrav').classList.toggle('on',down<0);
+}
+function flipGravity(){ down=-down; syncGravity(); toast(down>0?'Gravity ↓':'Gravity ↑'); }
+function toggleBloom(){ bloom=!bloom; glowC.classList.toggle('off',!bloom); $('bBloom').classList.toggle('on',bloom); }
+
+let toastT=0;
+function toast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1400);
+}
+
+addEventListener('keydown',ev=>{
+  if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
+  const k=ev.key.toLowerCase();
+  if(ev.code==='Space'){ ev.preventDefault(); togglePause(); return; }
+  if(k==='shift'){ ptr.shift=true; updateCursor(); return; }
+  if(KEYMAP[k]!==undefined){ select(KEYMAP[k]); return; }
+  switch(k){
+    case 's': stepOnce(); break;
+    case 'c': clearAll(); toast('Cleared'); break;
+    case 'g': flipGravity(); break;
+    case 'b': toggleBloom(); bloomForced=true; break;
+    case 'h': document.body.classList.toggle('hide-ui'); break;
+    case '[': setBrush(brush-1); break;
+    case ']': setBrush(brush+1); break;
+  }
+});
+addEventListener('keyup',ev=>{ if(ev.key==='Shift'){ ptr.shift=false; updateCursor(); } });
+
+let resizeT=0;
+addEventListener('resize',()=>{ clearTimeout(resizeT); resizeT=setTimeout(layout,120); });
+
+/* ======================= Main loop (fixed timestep) ======================= */
+const DT=1000/60;
+let lowFps=0, bloomForced=false;
+let last=performance.now(), acc=0, fpsFrames=0, fpsTicks=0, fpsT=last, fps=0, tps=0;
+const sFps=$('sFps'), sTps=$('sTps'), sCount=$('sCount'), sHover=$('sHover'), sState=$('sState'), fpsBar=$('fpsbar').firstChild;
+
+function simTick(){ applyHeldTools(); step(); fpsTicks++; }
+
+function frame(now){
+  let dt=now-last; last=now; if(dt>250) dt=250;
+  // continuous flow while the brush is held still
+  if(ptr.down&&tool!==TOOL_VORTEX&&tool!==TOOL_METEOR&&(rnd()&1)) paintAt(ptr.x,ptr.y,brush,activeElement());
+  else if(ptr.down&&ptr.btn===2&&tool!==TOOL_VORTEX) paintAt(ptr.x,ptr.y,brush,EMPTY);
+  if(!paused){
+    acc+=dt*speed; let n=0;
+    while(acc>=DT&&n<4){ simTick(); acc-=DT; n++; }
+    if(n===4) acc=0;
+  } else if(stepReq){ simTick(); stepReq=false; }
+
+  frameNo++;
+  render();
+
+  // camera shake & flash
+  if(shake>.25){
+    stage.style.transform='translate('+((r01()-.5)*shake).toFixed(1)+'px,'+((r01()-.5)*shake).toFixed(1)+'px)';
+    shake*=.86;
+  } else if(shake){ shake=0; stage.style.transform=''; }
+  if(flash>.01){ flashEl.style.opacity=flash.toFixed(3); flash*=.82; }
+  else if(flash){ flash=0; flashEl.style.opacity='0'; }
+
+  fpsFrames++;
+  if(now-fpsT>=500){
+    const s=(now-fpsT)/1000;
+    fps=Math.round(fpsFrames/s); tps=Math.round(fpsTicks/s);
+    fpsFrames=0; fpsTicks=0; fpsT=now;
+    sFps.textContent=fps; sTps.textContent=tps+' t/s';
+    sCount.textContent=particleCount.toLocaleString();
+    fpsBar.style.width=Math.min(100,fps/60*100)+'%';
+    sState.textContent=paused?'paused':(down>0?'running':'running ↑');
+    if(bloom&&!bloomForced&&fps<38){ if(++lowFps>=6){ toggleBloom(); toast('Bloom off for performance (B to re-enable)'); } }
+    else lowFps=0;
+  }
+  if(ptr.over&&(frameNo&7)===0){
+    const t=g[ptr.y*W+ptr.x];
+    sHover.textContent=t?(t===WOOD&&life[ptr.y*W+ptr.x]?'Burning wood':EL[t].name):'—';
+  }
+  requestAnimationFrame(frame);
+}
+
+layout();
+select(SAND);
+setBrush(5);
+loadScene('Volcano & Ocean');
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
