@@ -13,17 +13,31 @@ test.describe('solids', () => {
     expect(r).toEqual([true, true, true, true]);
   });
 
-  test('ice slowly freezes neighbouring water', async ({ sb }) => {
+  test('ice stays frozen in open air and in room-temperature water', async ({ sb }) => {
+    const r = await sb.run(() => {
+      const { E } = sandbox, { H } = sandbox.size();
+      sandbox.fill(150, 40, 160, 50, E.ICE);
+      T.box(20, 60, H - 30, H - 1, E.STONE);
+      sandbox.fill(21, H - 15, 59, H - 2, E.WATER);
+      sandbox.fill(38, H - 10, 42, H - 6, E.ICE);
+      sandbox.step(2000);
+      return { air: sandbox.count(E.ICE), airTemp: sandbox.tempAt(155, 45) };
+    });
+    expect(r.air).toBe(121 + 25);
+    expect(r.airTemp).toBeLessThan(0);
+  });
+
+  test('cold water touching ice freezes', async ({ sb }) => {
     const r = await sb.run(() => {
       const { E } = sandbox, { H } = sandbox.size();
       T.box(20, 60, H - 30, H - 1, E.STONE);
       sandbox.fill(21, H - 15, 59, H - 2, E.WATER);
       sandbox.fill(38, H - 10, 42, H - 6, E.ICE);
       const ice = sandbox.count(E.ICE);
-      sandbox.step(3000);
+      for (let k = 0; k < 300; k++) { sandbox.heat(40, H - 8, 14, -25); sandbox.step(1); }
       return { ice, after: sandbox.count(E.ICE) };
     });
-    expect(r.after).toBeGreaterThan(r.ice);
+    expect(r.after).toBeGreaterThan(r.ice + 50);
   });
 
   test('heat melts ice', async ({ sb }) => {

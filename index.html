@@ -32,6 +32,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#07080c;color:var(--
 #cursor.vortex.repel{border-color:rgba(255,150,200,.8);animation-direction:reverse}
 #cursor.meteor{border-color:rgba(255,150,70,.9);border-width:2px}
 #cursor.erase{border-color:rgba(255,110,110,.8)}
+#cursor.heat{border-color:rgba(255,120,60,.9);box-shadow:0 0 12px rgba(255,90,30,.5),0 0 0 1px rgba(0,0,0,.4)}
+#cursor.cool{border-color:rgba(110,190,255,.9);box-shadow:0 0 12px rgba(80,170,255,.5),0 0 0 1px rgba(0,0,0,.4)}
 #cursor.hidden{display:none}
 @keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
 
@@ -96,13 +98,26 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   background:rgba(15,18,26,.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);
   font-size:11px;letter-spacing:.04em;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
 #toast.show{opacity:1;transform:translate(-50%,0)}
-@media (max-width:640px){
-  #palette{width:176px;padding:9px;max-height:calc(100% - 140px)}
-  .grid{grid-template-columns:1fr}
-  .sw kbd{display:none}
-  #stats{min-width:0;padding:8px 10px}
-  #stats .hide-sm{display:none}
-  input[type=range]{width:80px}
+#menuBtn{display:none;left:8px;top:8px;width:42px;height:42px;align-items:center;justify-content:center;
+  color:var(--text);font:600 18px/1 inherit;cursor:pointer;padding:0}
+#menuBtn i{width:16px;height:2px;background:currentColor;position:relative;border-radius:1px}
+#menuBtn i::before,#menuBtn i::after{content:"";position:absolute;left:0;width:16px;height:2px;background:currentColor;border-radius:1px}
+#menuBtn i::before{top:-5px} #menuBtn i::after{top:5px}
+@media (max-width:700px){
+  #menuBtn{display:flex}
+  #palette{display:none;top:58px;left:8px;width:min(270px,calc(100% - 16px));max-height:calc(100% - 132px)}
+  body.menu-open #palette{display:block}
+  #stats{right:8px;top:8px;min-width:0;padding:7px 10px}
+  #stats .big{font-size:16px}
+  #stats .hide-sm,#fpsbar{display:none}
+  #dock{left:8px;right:8px;bottom:8px;transform:none;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;max-width:none;scrollbar-width:none}
+  #dock::-webkit-scrollbar{display:none}
+  body.hide-ui #dock{transform:translateY(6px)}
+  .btn{padding:8px 10px}
+  .btn kbd,.sw kbd{display:none}
+  .sw{padding:8px 7px}
+  input[type=range]{width:90px}
+  .hint{display:none}
 }
 </style>
 </head>
@@ -115,6 +130,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 <div id="cursor"></div>
 <div id="toast"></div>
 
+<button id="menuBtn" class="panel" aria-label="Show elements"><i></i></button>
 <aside id="palette" class="panel">
   <div class="brand"><i class="dot"></i><b>SANDBOX</b><span>CA ENGINE</span></div>
   <div id="groups"></div>
@@ -122,11 +138,25 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <h4>Scenes</h4>
     <div class="scenes" id="scenes"></div>
   </div>
+  <div class="group">
+    <h4>World</h4>
+    <div class="scenes" id="world">
+      <button id="wSave" title="Save to this browser">Save</button>
+      <button id="wLoad" title="Load the browser save">Load</button>
+      <button id="wLink" title="Copy a link that contains this world">Copy link</button>
+      <button id="wDown" title="Download as a file">Download</button>
+      <button id="wOpen" title="Open a .sandbox file">Open file…</button>
+    </div>
+    <input type="file" id="fileIn" accept=".sandbox,application/octet-stream" hidden>
+  </div>
   <div class="hint">
     <b>LMB</b> paint · <b>RMB</b> erase<br>
     <b>Wheel</b> / <b>[ ]</b> brush size<br>
     <b>Vortex</b>: RMB or Shift repels<br>
-    <b>H</b> hide HUD · <b>B</b> bloom · <b>G</b> gravity
+    <b>Heat/Cool</b>: RMB does the opposite<br>
+    <b>Spout</b> emits the last liquid/powder/gas picked<br>
+    <b>Touch</b>: pinch to resize brush<br>
+    <b>H</b> HUD · <b>B</b> bloom · <b>G</b> gravity · <b>Y</b> thermal · <b>N</b> sound
   </div>
 </aside>
 
@@ -138,6 +168,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <div class="row"><span>brush</span><span id="sBrush">5px</span></div>
   <div class="row hide-sm"><span>grid</span><span id="sGrid">0×0</span></div>
   <div class="row hide-sm"><span>hover</span><span id="sHover">—</span></div>
+  <div class="row hide-sm"><span>temp</span><span id="sTemp">—</span></div>
   <div class="row"><span>state</span><span id="sState">running</span></div>
 </div>
 
@@ -148,6 +179,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <div class="sep"></div>
   <button class="btn" id="bGrav" title="Flip gravity (G)"><svg viewBox="0 0 16 16" id="gravIcon"><path d="M7 2h2v8h3l-4 4-4-4h3z"/></svg>Gravity<kbd>G</kbd></button>
   <button class="btn on" id="bBloom" title="Bloom glow (B)">Bloom<kbd>B</kbd></button>
+  <button class="btn" id="bHeat" title="Thermal view (Y)">Thermal<kbd>Y</kbd></button>
+  <button class="btn on" id="bSound" title="Sound (N)">Sound<kbd>N</kbd></button>
   <div class="seg" id="speedSeg">
     <button data-s="0.5">½×</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button>
   </div>
@@ -161,43 +194,59 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 
 /* ======================= Element definitions ======================= */
 const EMPTY=0,SAND=1,WATER=2,STONE=3,WOOD=4,FIRE=5,SMOKE=6,STEAM=7,OIL=8,ACID=9,
-      POWDER=10,LAVA=11,GLASS=12,METAL=13,ICE=14,PLANT=15,METEOR=16;
-const NE=17;
-const TOOL_METEOR=100, TOOL_VORTEX=101;
+      POWDER=10,LAVA=11,GLASS=12,METAL=13,ICE=14,PLANT=15,METEOR=16,SPOUT=17;
+const NE=18;
+const TOOL_METEOR=100, TOOL_VORTEX=101, TOOL_HEAT=102, TOOL_COOL=103;
 const K_SOLID=1,K_POWDER=2,K_LIQUID=3,K_GAS=4;
+const AMBIENT=20;
 
 const EL=[];
 const kind=new Uint8Array(NE), dens=new Uint8Array(NE), disp=new Uint8Array(NE);
 const flam=new Float32Array(NE), dissolve=new Float32Array(NE), fillP=new Float32Array(NE);
+// thermal properties: resting temperature, pull toward it, conductivity, loss to open air
+const tBase=new Float32Array(NE), tRelax=new Float32Array(NE), tCond=new Float32Array(NE), tAir=new Float32Array(NE);
 
 function def(id,o){
   EL[id]=o; kind[id]=o.k; dens[id]=o.d||0; flam[id]=o.f||0; dissolve[id]=o.ac||0;
   disp[id]=o.disp||0; fillP[id]=o.fill===undefined?1:o.fill;
+  tBase[id]=o.tb===undefined?AMBIENT:o.tb; tRelax[id]=o.rl||0; tCond[id]=o.cd||0; tAir[id]=o.ar||0;
 }
 def(EMPTY, {name:'Eraser',   k:0,       rgb:[30,34,44]});
-def(SAND,  {name:'Sand',     k:K_POWDER,d:90, ac:.12, fill:.45, rgb:[222,190,128], v:.14});
-def(WATER, {name:'Water',    k:K_LIQUID,d:40, disp:4, fill:.55, rgb:[38,116,226],  v:.08});
-def(STONE, {name:'Stone',    k:K_SOLID, d:255,ac:.06,           rgb:[110,113,124], v:.2});
-def(WOOD,  {name:'Wood',     k:K_SOLID, d:255,f:.035,ac:.14,    rgb:[124,82,46],   v:.18});
-def(FIRE,  {name:'Fire',     k:K_GAS,   d:0,  fill:.5,          rgb:[255,128,24],  v:0});
-def(SMOKE, {name:'Smoke',    k:K_GAS,   d:2,  fill:.35,         rgb:[96,96,108],   v:.12});
-def(STEAM, {name:'Steam',    k:K_GAS,   d:1,  fill:.35,         rgb:[206,222,240], v:.06});
-def(OIL,   {name:'Oil',      k:K_LIQUID,d:30, disp:3, f:.3, fill:.55, rgb:[92,62,30], v:.1});
-def(ACID,  {name:'Acid',     k:K_LIQUID,d:45, disp:3, fill:.55, rgb:[120,236,60],  v:.08});
-def(POWDER,{name:'Gunpowder',k:K_POWDER,d:85, f:.7, ac:.15, fill:.45, rgb:[66,64,72], v:.22});
-def(LAVA,  {name:'Lava',     k:K_LIQUID,d:70, disp:1, fill:.55, rgb:[255,96,16],   v:.1});
-def(GLASS, {name:'Glass',    k:K_SOLID, d:255,                  rgb:[150,226,240], v:.08});
-def(METAL, {name:'Metal',    k:K_SOLID, d:255,ac:.025,          rgb:[150,158,174], v:.1});
-def(ICE,   {name:'Ice',      k:K_SOLID, d:255,ac:.15,           rgb:[178,226,252], v:.07});
-def(PLANT, {name:'Plant',    k:K_SOLID, d:255,f:.06,ac:.2,      rgb:[64,172,74],   v:.2});
-def(METEOR,{name:'Meteor',   k:K_SOLID, d:255,                  rgb:[255,236,190], v:0});
+def(SAND,  {name:'Sand',     k:K_POWDER,d:90, ac:.12, fill:.45, rgb:[222,190,128], v:.14, rl:.004, cd:.02, ar:.002});
+def(WATER, {name:'Water',    k:K_LIQUID,d:40, disp:4, fill:.55, rgb:[38,116,226],  v:.08, rl:.003, cd:.05, ar:.002});
+def(STONE, {name:'Stone',    k:K_SOLID, d:255,ac:.06,           rgb:[110,113,124], v:.2,  rl:.0002,cd:.04, ar:.001});
+def(WOOD,  {name:'Wood',     k:K_SOLID, d:255,f:.035,ac:.14,    rgb:[124,82,46],   v:.18, rl:.001, cd:.01, ar:.002});
+def(FIRE,  {name:'Fire',     k:K_GAS,   d:0,  fill:.5,          rgb:[255,128,24],  v:0,   tb:800, rl:1, cd:.08});
+def(SMOKE, {name:'Smoke',    k:K_GAS,   d:2,  fill:.35,         rgb:[96,96,108],   v:.12, rl:.02});
+def(STEAM, {name:'Steam',    k:K_GAS,   d:1,  fill:.35,         rgb:[206,222,240], v:.06, tb:130, rl:.004, cd:.01});
+def(OIL,   {name:'Oil',      k:K_LIQUID,d:30, disp:3, f:.3, fill:.55, rgb:[92,62,30], v:.1, rl:.004, cd:.02, ar:.002});
+def(ACID,  {name:'Acid',     k:K_LIQUID,d:45, disp:3, fill:.55, rgb:[120,236,60],  v:.08, rl:.003, cd:.04, ar:.002});
+def(POWDER,{name:'Gunpowder',k:K_POWDER,d:85, f:.7, ac:.15, fill:.45, rgb:[66,64,72], v:.22, rl:.004, cd:.02, ar:.002});
+def(LAVA,  {name:'Lava',     k:K_LIQUID,d:70, disp:1, fill:.55, rgb:[255,96,16],   v:.1,  tb:1100, cd:.0001, ar:.0003});
+def(GLASS, {name:'Glass',    k:K_SOLID, d:255,                  rgb:[150,226,240], v:.08, rl:.0002,cd:.02, ar:.001});
+def(METAL, {name:'Metal',    k:K_SOLID, d:255,ac:.025,          rgb:[150,158,174], v:.1,  rl:.0001,cd:.3,  ar:.0004});
+def(ICE,   {name:'Ice',      k:K_SOLID, d:255,ac:.15,           rgb:[178,226,252], v:.07, tb:-20, rl:.03, cd:.03});
+def(PLANT, {name:'Plant',    k:K_SOLID, d:255,f:.06,ac:.2,      rgb:[64,172,74],   v:.2,  rl:.004, cd:.01, ar:.002});
+def(METEOR,{name:'Meteor',   k:K_SOLID, d:255,                  rgb:[255,236,190], v:0,   tb:1500, rl:1, cd:.1});
+def(SPOUT, {name:'Spout',    k:K_SOLID, d:255,                  rgb:[64,70,84],    v:.12});
+// conductance between two touching cells: geometric mean of their conductivities
+const tPair=new Float32Array(NE*NE);
+for(let a=0;a<NE;a++) for(let b=0;b<NE;b++) tPair[a*NE+b]=Math.sqrt(tCond[a]*tCond[b]);
 
 const TOOLS={};
 TOOLS[TOOL_METEOR]={name:'Meteor',rgb:[255,120,50]};
 TOOLS[TOOL_VORTEX]={name:'Vortex',rgb:[120,170,255]};
+TOOLS[TOOL_HEAT]={name:'Heat',rgb:[255,90,40]};
+TOOLS[TOOL_COOL]={name:'Cool',rgb:[90,180,255]};
+// elements a spout can emit
+const EMITTABLE=new Set([SAND,WATER,FIRE,SMOKE,STEAM,OIL,ACID,POWDER,LAVA]);
+let spoutEl=WATER;
+// simulation events consumed by the sound engine each frame
+const EV={boom:0,boomMax:0,fizz:0,sizzle:0,meteor:0};
 
 const KEYMAP={'1':SAND,'2':WATER,'3':STONE,'4':WOOD,'5':FIRE,'6':OIL,'7':ACID,'8':POWDER,'9':LAVA,'0':GLASS,
-  'e':EMPTY,'m':TOOL_METEOR,'v':TOOL_VORTEX,'x':METAL,'i':ICE,'p':PLANT,'k':SMOKE,'t':STEAM};
+  'e':EMPTY,'m':TOOL_METEOR,'v':TOOL_VORTEX,'x':METAL,'i':ICE,'p':PLANT,'k':SMOKE,'t':STEAM,
+  'a':SPOUT,'u':TOOL_HEAT,'o':TOOL_COOL};
 const KEYOF={}; for(const k in KEYMAP) KEYOF[KEYMAP[k]]=k.toUpperCase();
 
 const GROUPS=[
@@ -205,7 +254,7 @@ const GROUPS=[
   {name:'Liquids', items:[WATER,OIL,ACID,LAVA]},
   {name:'Solids',  items:[STONE,WOOD,GLASS,METAL,ICE,PLANT]},
   {name:'Gases & Energy', items:[FIRE,SMOKE,STEAM]},
-  {name:'Special Tools', items:[EMPTY,TOOL_METEOR,TOOL_VORTEX]},
+  {name:'Special Tools', items:[EMPTY,TOOL_METEOR,TOOL_VORTEX,TOOL_HEAT,TOOL_COOL,SPOUT]},
 ];
 
 const DX8=[-1,0,1,-1,1,-1,0,1], DY8=[-1,-1,-1,0,0,1,1,1];
@@ -224,6 +273,9 @@ const TAU=Math.PI*2;
 const pal=new Uint32Array(NE*256), palHi=new Uint32Array(NE*256);
 const palW=new Uint32Array(256), palO=new Uint32Array(256), palA=new Uint32Array(256), glowA=new Uint32Array(256);
 const palL=new Uint32Array(256), firePal=new Uint32Array(256), palBurn=new Uint32Array(256);
+// thermal view: index = (temp+40)/5, i.e. -40°C .. 1235°C
+const heatPal=new Uint32Array(256);
+const heatIdx=t=>{ const k=((t+40)/5)|0; return k<0?0:k>255?255:k; };
 
 (function buildPalettes(){
   for(let e=0;e<NE;e++){
@@ -272,6 +324,12 @@ const palL=new Uint32Array(256), firePal=new Uint32Array(256), palBurn=new Uint3
     const f=.55+.25*Math.sin(c*.35);
     palBurn[c]=pack(124*f+90,82*f+20,46*f);
   }
+  const hs=[[-40,[40,90,255]],[0,[60,170,255]],[20,[24,30,44]],[100,[120,40,170]],[300,[230,40,60]],[700,[255,160,30]],[1235,[255,255,240]]];
+  for(let c=0;c<256;c++){
+    const t=c*5-40; let k=0; while(k<hs.length-2&&t>hs[k+1][0])k++;
+    const [a0,c0]=hs[k],[a1,c1]=hs[k+1], f=Math.min(1,Math.max(0,(t-a0)/(a1-a0)));
+    heatPal[c]=pack(c0[0]+(c1[0]-c0[0])*f,c0[1]+(c1[1]-c0[1])*f,c0[2]+(c1[2]-c0[2])*f);
+  }
 })();
 
 /* ======================= Grid state ======================= */
@@ -280,20 +338,21 @@ const ctx=canvas.getContext('2d',{alpha:false}), gctx=glowC.getContext('2d');
 const stage=document.getElementById('stage'), flashEl=document.getElementById('flash');
 
 let W=0,H=0,N=0,S=4;
-let g,life,col,vx,vy,stamp;
+let g,life,col,vx,vy,stamp,temp;
 let bg32,bgR,bgG,bgB,img,buf,gimg,gbuf;
 let tick=0, down=1;
 
 function alloc(nw,nh){
-  const og=g,ol=life,oc=col,ow=W,oh=H;
+  const og=g,ol=life,oc=col,ot=temp,ow=W,oh=H;
   W=nw;H=nh;N=W*H;
   g=new Uint8Array(N); life=new Uint8Array(N); col=new Uint8Array(N);
   vx=new Int8Array(N); vy=new Int8Array(N); stamp=new Uint8Array(N);
+  temp=new Float32Array(N).fill(AMBIENT);
   if(og){
     const cw=Math.min(ow,W), ch=Math.min(oh,H);
     for(let y=0;y<ch;y++){
       const so=(oh-1-y)*ow, d=(H-1-y)*W;
-      for(let x=0;x<cw;x++){ g[d+x]=og[so+x]; life[d+x]=ol[so+x]; col[d+x]=oc[so+x]; }
+      for(let x=0;x<cw;x++){ g[d+x]=og[so+x]; life[d+x]=ol[so+x]; col[d+x]=oc[so+x]; temp[d+x]=ot[so+x]; }
     }
   }
   canvas.width=W; canvas.height=H; glowC.width=W; glowC.height=H;
@@ -325,22 +384,26 @@ function layout(){
 
 /* ======================= Cell primitives ======================= */
 function setCell(i,e){
-  g[i]=e; col[i]=rnd()&255; vx[i]=0; vy[i]=0; stamp[i]=tick;
+  g[i]=e; col[i]=rnd()&255; vx[i]=0; vy[i]=0; stamp[i]=tick; temp[i]=tBase[e];
   switch(e){
     case FIRE:  life[i]=18+rnd()%40; break;
     case SMOKE: life[i]=110+rnd()%140; break;
     case STEAM: life[i]=140+rnd()%110; break;
     case WATER: case OIL: case ACID: case LAVA: life[i]=rnd()&1; break;
+    case SPOUT: life[i]=spoutEl; break;
     default: life[i]=0;
   }
 }
-function clear(i){ g[i]=0; life[i]=0; vx[i]=0; vy[i]=0; stamp[i]=tick; }
+// change a cell's element but keep its heat (phase changes)
+function morph(i,e){ const t=temp[i]; setCell(i,e); temp[i]=t; }
+function clear(i){ g[i]=0; life[i]=0; vx[i]=0; vy[i]=0; stamp[i]=tick; temp[i]=AMBIENT; }
 function swap(a,b){
   let t=g[a]; g[a]=g[b]; g[b]=t;
   t=life[a]; life[a]=life[b]; life[b]=t;
   t=col[a]; col[a]=col[b]; col[b]=t;
   t=vx[a]; vx[a]=vx[b]; vx[b]=t;
   t=vy[a]; vy[a]=vy[b]; vy[b]=t;
+  t=temp[a]; temp[a]=temp[b]; temp[b]=t;
   stamp[a]=tick; stamp[b]=tick;
 }
 const clampV=v=>v>12?12:v<-12?-12:v;
@@ -439,7 +502,7 @@ function fire(i,x,y){
     const nx=x+DX8[n], ny=y+DY8[n];
     if(nx<0||nx>=W||ny<0||ny>=H) continue;
     const j=ny*W+nx, t=g[j];
-    if(t===WATER){ setCell(i,STEAM); if(r01()<.3) setCell(j,STEAM); return; }
+    if(t===WATER){ setCell(i,STEAM); if(r01()<.3) setCell(j,STEAM); EV.sizzle++; return; }
     if(t===ICE){ if(r01()<.05) setCell(j,WATER); continue; }
     const f=flam[t]; if(f>0&&r01()<f) ignite(j,t);
   }
@@ -480,10 +543,11 @@ function steam(i,x,y){
 
 function burnWood(i,x,y){
   if(life[i]<250) life[i]++;
+  if(temp[i]<500) temp[i]=500;
   const k=rnd()&7, nx=x+DX8[k], ny=y+DY8[k];
   if(nx>=0&&nx<W&&ny>=0&&ny<H){
     const j=ny*W+nx, t=g[j];
-    if(t===WATER){ life[i]=0; setCell(j,STEAM); return; }
+    if(t===WATER){ life[i]=0; if(temp[i]>80) temp[i]=80; setCell(j,STEAM); EV.sizzle++; return; }
     if(t===0){
       if(r01()<.1){ if(r01()<.85){ setCell(j,FIRE); life[j]=6+rnd()%18; } else setCell(j,SMOKE); }
     } else if(t===ICE){ if(r01()<.05) setCell(j,WATER); }
@@ -497,7 +561,7 @@ function lava(i,x,y){
     const nx=x+DX4[n], ny=y+DY4[n];
     if(nx<0||nx>=W||ny<0||ny>=H) continue;
     const j=ny*W+nx, t=g[j];
-    if(t===WATER){ setCell(i,STONE); setCell(j,STEAM); return; }
+    if(t===WATER){ morph(i,STONE); setCell(j,STEAM); EV.sizzle++; return; }
     if(t===SAND){ if(r01()<.02) setCell(j,GLASS); }
     else if(t===ICE){ setCell(j,r01()<.5?WATER:STEAM); }
     else if(flam[t]>0&&r01()<Math.min(1,flam[t]*3)) ignite(j,t);
@@ -525,6 +589,7 @@ function acid(i,x,y){
     if(dr>0&&r01()<dr){
       if(t===WOOD&&life[j]) { clear(j); } else if(r01()<.35) setCell(j,SMOKE); else clear(j);
       if(r01()<.5) setCell(i,SMOKE); else clear(i);
+      EV.fizz++;
       return true;
     }
     if(t===WATER&&r01()<.008){ setCell(i,WATER); return true; }
@@ -533,11 +598,76 @@ function acid(i,x,y){
 }
 
 function ice(i,x,y){
+  // freezing and melting by temperature happen in heatStep; direct flame contact melts too
   const k=rnd()&7, nx=x+DX8[k], ny=y+DY8[k];
   if(nx<0||nx>=W||ny<0||ny>=H) return;
-  const j=ny*W+nx, t=g[j];
-  if(t===WATER){ if(r01()<.12) setCell(j,ICE); }
-  else if(t===FIRE||t===LAVA||t===STEAM) setCell(i,WATER);
+  const t=g[ny*W+nx];
+  if(t===FIRE||t===LAVA) setCell(i,WATER);
+}
+
+function spout(i,x,y){
+  const e=life[i]; if(!EMITTABLE.has(e)) return;
+  // prefer emitting in the direction the element naturally moves
+  const dirY=kind[e]===K_GAS?-down:down;
+  let nx=x, ny=y+dirY;
+  if(ny<0||ny>=H||g[ny*W+nx]!==0){ const k=rnd()&7; nx=x+DX8[k]; ny=y+DY8[k]; }
+  if(nx<0||nx>=W||ny<0||ny>=H) return;
+  const j=ny*W+nx;
+  if(g[j]===0) setCell(j,e);
+}
+
+/* ---------- temperature: conduction, relaxation, air cooling, phase changes ---------- */
+function heatStep(){
+  for(let y=0;y<H;y++){
+    const row=y*W;
+    for(let x=0;x<W;x++){
+      const i=row+x, e=g[i];
+      if(e===0) continue;
+      let t=temp[i];
+      const rl=tRelax[e]; if(rl) t+=(tBase[e]-t)*rl;
+      if(tCond[e]){
+        const pr=e*NE;
+        if(x+1<W){ const j=i+1, e2=g[j]; if(e2){ const k=tPair[pr+e2]; if(k){ const f=(temp[j]-t)*k; t+=f; temp[j]-=f; } } }
+        if(y+1<H){ const j=i+W, e2=g[j]; if(e2){ const k=tPair[pr+e2]; if(k){ const f=(temp[j]-t)*k; t+=f; temp[j]-=f; } } }
+      }
+      const ar=tAir[e];
+      if(ar){
+        let open=0;
+        if(x>0&&g[i-1]===0) open++;
+        if(x+1<W&&g[i+1]===0) open++;
+        if(y>0&&g[i-W]===0) open++;
+        if(y+1<H&&g[i+W]===0) open++;
+        if(open) t+=(AMBIENT-t)*ar*open;
+      }
+      temp[i]=t;
+      switch(e){
+        case WATER: if(t>100){ if(r01()<.15) morph(i,STEAM); } else if(t<-3&&r01()<.05) morph(i,ICE); break;
+        case ICE:   if(t>2) morph(i,WATER); break;
+        case STEAM: if(t<40&&r01()<.02) morph(i,WATER); break;
+        case LAVA:  if(t<600&&r01()<.03) morph(i,STONE); break;
+        case STONE: if(t>1200) morph(i,LAVA); break;
+        case SAND:  if(t>1000) morph(i,GLASS); break;
+        case WOOD:  if(t>260&&!life[i]) life[i]=1; break;
+        case OIL:   if(t>200){ ignite(i,OIL); } break;
+        case PLANT: if(t>220) ignite(i,PLANT); break;
+        case POWDER:if(t>170&&!life[i]) life[i]=1; break;
+      }
+    }
+  }
+}
+
+function applyTemp(cx,cy,r,dt){
+  const rr=(r-.5)*(r-.5), lim=r-1;
+  for(let dy=-lim;dy<=lim;dy++){
+    const y=cy+dy; if(y<0||y>=H) continue;
+    for(let dx=-lim;dx<=lim;dx++){
+      if(dx*dx+dy*dy>rr) continue;
+      const x=cx+dx; if(x<0||x>=W) continue;
+      const j=y*W+x; if(!g[j]) continue;
+      let t=temp[j]+dt; if(t>1500) t=1500; else if(t<-60) t=-60;
+      temp[j]=t;
+    }
+  }
 }
 
 function plant(i,x,y){
@@ -576,7 +706,7 @@ function explode(cx,cy,R,power){
       const d2=dx*dx+dy*dy; if(d2>OR2) continue;
       const j=y*W+x, t=g[j];
       if(d2<=R2&&(d2<R2*.6||r01()<.7)){
-        if(t===METAL){ if(r01()<.85) continue; }
+        if(t===METAL||t===SPOUT){ if(r01()<.85) continue; }
         else if(t===STONE){ if(d2>R2*.35&&r01()<.55) continue; }
         else if(t===GLASS){ setCell(j,SAND); continue; }
         else if(t===POWDER){ if(!life[j]&&r01()<.6){ life[j]=1+(rnd()&3); continue; } }
@@ -596,6 +726,7 @@ function explode(cx,cy,R,power){
       } else if(t===WOOD&&d2<=R2*2&&r01()<.2&&!life[j]) life[j]=1;
     }
   }
+  EV.boom++; if(R>EV.boomMax) EV.boomMax=R;
   shake=Math.min(14,shake+R*.55);
   if(R>=7){
     flash=Math.min(.85,flash+R/22);
@@ -655,16 +786,36 @@ function step(){
         case ICE:   if((rnd()&15)===0) ice(i,x,y); break;
         case PLANT: if((rnd()&15)===0) plant(i,x,y); break;
         case METEOR: meteor(i,x,y); break;
+        case SPOUT: if((rnd()&3)===0) spout(i,x,y); break;
       }
     }
   }
+  heatStep();
 }
 
 /* ======================= Rendering ======================= */
-let bloom=true, frameNo=0, particleCount=0;
+let bloom=true, heatView=false, frameNo=0, particleCount=0, fireCount=0;
+// blend a solid's colour toward incandescence as it heats up
+function hotTint(c,t,start){
+  let k=(t-start)/800; if(k<=0) return c; if(k>1) k=1;
+  const fc=firePal[(50+k*200)|0], a=k*1.4>1?1:k*1.4;
+  const r=c&255, gg=(c>>>8)&255, b=(c>>>16)&255;
+  return pack(r+((fc&255)-r)*a, gg+(((fc>>>8)&255)-gg)*a, b+(((fc>>>16)&255)-b)*a);
+}
 function render(){
-  const bl=bloom, wS=(frameNo*2)&255, lS=frameNo&255, dW=down*W;
-  let count=0;
+  const bl=bloom&&!heatView, wS=(frameNo*2)&255, lS=frameNo&255, dW=down*W;
+  let count=0, fires=0;
+  if(heatView){
+    for(let i=0;i<N;i++){
+      const e=g[i];
+      if(e===0){ buf[i]=bg32[i]; continue; }
+      count++; if(e===FIRE) fires++;
+      buf[i]=heatPal[heatIdx(temp[i])];
+    }
+    particleCount=count; fireCount=fires;
+    ctx.putImageData(img,0,0);
+    return;
+  }
   for(let i=0;i<N;i++){
     const e=g[i];
     if(e===0){ buf[i]=bg32[i]; if(bl) gbuf[i]=0; continue; }
@@ -675,7 +826,12 @@ function render(){
       case OIL:   c=palO[(col[i]+wS)&255]; break;
       case ACID:  { const k=(col[i]+wS)&255; c=palA[k]; gc=glowA[k]; } break;
       case LAVA:  c=palL[(col[i]+lS)&255]; gc=c; break;
-      case FIRE:  { let h=life[i]*6+(rnd()&63); if(h>255) h=255; c=firePal[h]; gc=c; } break;
+      case FIRE:  { fires++; let h=life[i]*6+(rnd()&63); if(h>255) h=255; c=firePal[h]; gc=c; } break;
+      case SPOUT: {
+        const el=life[i], ring=((col[i]>>2)+frameNo)&31;
+        if(ring<7&&el<NE){ c=pal[(el<<8)|128]; if(el===LAVA||el===FIRE) gc=c; }
+        else { const j=i-dW; c=(j>=0&&j<N&&g[j]===0)?palHi[(SPOUT<<8)|col[i]]:pal[(SPOUT<<8)|col[i]]; }
+      } break;
       case METEOR: c=firePal[235+(rnd()&15)]; gc=c; break;
       case SMOKE: case STEAM: {
         const rgb=EL[e].rgb, L=life[i];
@@ -698,16 +854,186 @@ function render(){
         // fallthrough
       default: {
         const k=(e<<8)|col[i];
-        if(kind[e]===K_SOLID){ const j=i-dW; c=(j>=0&&j<N&&g[j]===0)?palHi[k]:pal[k]; }
+        if(kind[e]===K_SOLID){
+          const j=i-dW; c=(j>=0&&j<N&&g[j]===0)?palHi[k]:pal[k];
+          const t=temp[i];
+          if(e===METAL){ if(t>250){ c=hotTint(c,t,250); if(t>400) gc=c; } }
+          else if(t>450&&e===STONE){ c=hotTint(c,t,450); if(t>550) gc=c; }
+        }
         else c=pal[k];
       }
     }
     buf[i]=c;
     if(bl) gbuf[i]=gc;
   }
-  particleCount=count;
+  particleCount=count; fireCount=fires;
   ctx.putImageData(img,0,0);
   if(bl) gctx.putImageData(gimg,0,0);
+}
+
+/* ======================= Sound (synthesised with Web Audio) ======================= */
+const Sound=(()=>{
+  let ac=null, master=null, noiseBuf=null;
+  let enabled=true;
+  try{ enabled=localStorage.getItem('sandbox.sound')!=='off'; }catch(_){}
+  const stats={explosions:0,fizz:0,sizzle:0,crackle:0,whoosh:0};
+  const last={boom:0,fizz:0,sizzle:0};
+  const pend={boom:0,boomMax:0,fizz:0,sizzle:0};
+
+  function init(){
+    if(ac){ if(ac.state==='suspended') ac.resume().catch(()=>{}); return; }
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    try{
+      ac=new AC();
+      master=ac.createGain(); master.gain.value=enabled?.55:0;
+      const comp=ac.createDynamicsCompressor();
+      comp.threshold.value=-18; comp.ratio.value=6;
+      master.connect(comp); comp.connect(ac.destination);
+      noiseBuf=ac.createBuffer(1,ac.sampleRate,ac.sampleRate);
+      const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    }catch(_){ ac=null; }
+  }
+  function noise(t,dur,type,f0,f1,q,gain){
+    const src=ac.createBufferSource(); src.buffer=noiseBuf;
+    const f=ac.createBiquadFilter(); f.type=type; f.Q.value=q;
+    f.frequency.setValueAtTime(f0,t); if(f1!==f0) f.frequency.exponentialRampToValueAtTime(f1,t+dur);
+    const gn=ac.createGain(); gn.gain.setValueAtTime(gain,t); gn.gain.exponentialRampToValueAtTime(.0008,t+dur);
+    src.connect(f); f.connect(gn); gn.connect(master);
+    src.start(t,Math.random()*.5); src.stop(t+dur+.05);
+  }
+  function thump(t,dur,f0,f1,gain){
+    const o=ac.createOscillator(); o.type='sine';
+    o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(f1,t+dur);
+    const gn=ac.createGain(); gn.gain.setValueAtTime(gain,t); gn.gain.exponentialRampToValueAtTime(.0008,t+dur);
+    o.connect(gn); gn.connect(master); o.start(t); o.stop(t+dur+.05);
+  }
+  const ready=()=>enabled&&ac&&master;
+
+  function explosion(size,n){
+    const t=ac.currentTime, s=Math.min(1,.3+size*.05+n*.02);
+    noise(t,.35+size*.05,'lowpass',900,60,.8,.9*s);
+    thump(t,.3+size*.03,90,30,.9*s);
+    stats.explosions++;
+  }
+  function fizz(n){ noise(ac.currentTime,.14,'highpass',4000,6000,.7,Math.min(.22,.04+n*.01)); stats.fizz++; }
+  function sizzle(n){ noise(ac.currentTime,.32,'bandpass',5200,3000,1.2,Math.min(.28,.06+n*.02)); stats.sizzle++; }
+  function crackle(){ noise(ac.currentTime,.02+Math.random()*.03,'bandpass',1800+Math.random()*2500,1500,3,.06+Math.random()*.1); stats.crackle++; }
+  function whoosh(){ noise(ac.currentTime,.7,'bandpass',2600,260,2,.35); stats.whoosh++; }
+
+  // called once per rendered frame with the events the simulation produced
+  function frame(ev,fires,now){
+    pend.boom+=ev.boom; pend.boomMax=Math.max(pend.boomMax,ev.boomMax); pend.fizz+=ev.fizz; pend.sizzle+=ev.sizzle;
+    const meteors=ev.meteor;
+    ev.boom=0; ev.boomMax=0; ev.fizz=0; ev.sizzle=0; ev.meteor=0;
+    if(!ready()){ pend.boom=pend.boomMax=pend.fizz=pend.sizzle=0; return; }
+    if(pend.boom&&now-last.boom>70){ explosion(pend.boomMax,pend.boom); pend.boom=0; pend.boomMax=0; last.boom=now; }
+    if(pend.fizz&&now-last.fizz>110){ fizz(pend.fizz); pend.fizz=0; last.fizz=now; }
+    if(pend.sizzle&&now-last.sizzle>140){ sizzle(pend.sizzle); pend.sizzle=0; last.sizzle=now; }
+    if(meteors) whoosh();
+    if(fires&&Math.random()<Math.min(.55,fires/350)) crackle();
+  }
+  function setEnabled(on){
+    enabled=on;
+    try{ localStorage.setItem('sandbox.sound',on?'on':'off'); }catch(_){}
+    if(master) master.gain.setTargetAtTime(on?.55:0,ac.currentTime,.03);
+    if(on) init();
+  }
+  return {init,frame,setEnabled,stats,get enabled(){return enabled;},get running(){return !!ac;}};
+})();
+
+/* ======================= Save / load / share ======================= */
+const SAVE_KEY='sandbox.world';
+// symbol per cell: element id, or for spouts element + 32*emitted element
+const symAt=i=>g[i]===SPOUT?SPOUT+32*life[i]:g[i];
+function encodeWorld(){
+  const out=[];
+  const vint=v=>{ while(v>127){ out.push((v&127)|128); v>>>=7; } out.push(v); };
+  out.push(83,66,2, W&255,W>>8, H&255,H>>8, down>0?1:0);
+  let i=0;
+  while(i<N){
+    const s=symAt(i); let run=1;
+    while(i+run<N&&symAt(i+run)===s) run++;
+    vint(s); vint(run); i+=run;
+  }
+  return new Uint8Array(out);
+}
+function decodeWorld(bytes){
+  if(bytes.length<8||bytes[0]!==83||bytes[1]!==66||bytes[2]!==2) throw new Error('not a sandbox world');
+  const w=bytes[3]|bytes[4]<<8, h=bytes[5]|bytes[6]<<8, dflag=bytes[7];
+  if(!w||!h||w*h>4e6) throw new Error('bad world size');
+  const sym=new Uint16Array(w*h);
+  let p=8, i=0;
+  const vint=()=>{ let v=0, sh=0, b; do{ if(p>=bytes.length) throw new Error('truncated world'); b=bytes[p++]; v|=(b&127)<<sh; sh+=7; }while(b&128); return v>>>0; };
+  while(i<w*h){
+    const s=vint(), run=vint();
+    if(!run||i+run>w*h||(s&31)>=NE) throw new Error('corrupt world');
+    sym.fill(s,i,i+run); i+=run;
+  }
+  clearAll();
+  down=dflag?1:-1; syncGravity();
+  const cw=Math.min(w,W), ch=Math.min(h,H);
+  for(let y=0;y<ch;y++){
+    const so=(h-1-y)*w, d=(H-1-y)*W;
+    for(let x=0;x<cw;x++){
+      const s=sym[so+x]; if(!s) continue;
+      const e=s&31; setCell(d+x,e);
+      if(e===SPOUT) life[d+x]=s>>5;
+    }
+  }
+}
+async function deflate(bytes,dir){
+  const CS=dir?window.CompressionStream:window.DecompressionStream;
+  const stream=new Blob([bytes]).stream().pipeThrough(new CS('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+// packed = [flag, ...payload]; flag 1 means deflate-raw compressed
+async function packWorld(){
+  const raw=encodeWorld();
+  if(window.CompressionStream){ const z=await deflate(raw,true); const o=new Uint8Array(z.length+1); o[0]=1; o.set(z,1); return o; }
+  const o=new Uint8Array(raw.length+1); o.set(raw,1); return o;
+}
+async function unpackWorld(packed){
+  if(!packed||!packed.length) throw new Error('empty world');
+  const body=packed.subarray(1);
+  decodeWorld(packed[0]===1?await deflate(body,false):body);
+}
+function toB64(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000)); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function fromB64(str){
+  const s=atob(str.replace(/-/g,'+').replace(/_/g,'/')+'==='.slice((str.length+3)%4));
+  const o=new Uint8Array(s.length); for(let i=0;i<s.length;i++) o[i]=s.charCodeAt(i); return o;
+}
+async function saveLocal(){
+  try{ localStorage.setItem(SAVE_KEY,toB64(await packWorld())); toast('World saved'); return true; }
+  catch(e){ toast('Save failed: '+e.message); return false; }
+}
+async function loadLocal(){
+  let str=null; try{ str=localStorage.getItem(SAVE_KEY); }catch(_){}
+  if(!str){ toast('No saved world yet'); return false; }
+  try{ await unpackWorld(fromB64(str)); toast('World loaded'); return true; }
+  catch(e){ toast('Load failed: '+e.message); return false; }
+}
+async function shareLink(){
+  const url=location.href.split('#')[0]+'#w='+toB64(await packWorld());
+  try{ history.replaceState(null,'',url); }catch(_){}
+  try{ await navigator.clipboard.writeText(url); toast('Link copied ('+Math.round(url.length/1024)+' KB)'); }
+  catch(_){ toast('Link is in the address bar'); }
+  return url;
+}
+async function downloadWorld(){
+  const blob=new Blob([await packWorld()],{type:'application/octet-stream'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='world.sandbox';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  toast('World downloaded');
+}
+async function openWorldFile(file){
+  try{ await unpackWorld(new Uint8Array(await file.arrayBuffer())); toast('Opened '+file.name); return true; }
+  catch(e){ toast('Could not open file: '+e.message); return false; }
+}
+async function loadFromHash(){
+  const m=/^#w=([A-Za-z0-9_-]+)$/.exec(location.hash); if(!m) return false;
+  try{ await unpackWorld(fromB64(m[1])); toast('World loaded from link'); return true; }
+  catch(e){ toast('Link is broken: '+e.message); return false; }
 }
 
 /* ======================= Input & tools ======================= */
@@ -745,48 +1071,86 @@ function paintLine(x0,y0,x1,y1,r,e){
 }
 function activeElement(){ return ptr.btn===2?EMPTY:tool; }
 function isElementTool(t){ return t<NE; }
+const isTempTool=t=>t===TOOL_HEAT||t===TOOL_COOL;
+// does the current stroke place/erase cells?
+function paints(){
+  if(ptr.btn===2) return tool!==TOOL_VORTEX&&!isTempTool(tool);
+  return tool<NE;
+}
 
 function spawnMeteor(){
   const sx=Math.max(0,Math.min(W-1,ptr.x+((rnd()%(brush*2+1))-brush)));
   const sy=down>0?0:H-1, i=sy*W+sx;
   if(g[i]!==0&&kind[g[i]]!==K_GAS) return;
   setCell(i,METEOR); vx[i]=(rnd()%3)-1;
+  EV.meteor++;
 }
 
 function applyHeldTools(){
   if(!ptr.down) return;
   if(tool===TOOL_VORTEX){ vortex(ptr.x,ptr.y,brush*2+8,ptr.btn===2||ptr.shift); return; }
   if(tool===TOOL_METEOR&&ptr.btn!==2){ if(--meteorCd<=0){ spawnMeteor(); meteorCd=10; } return; }
+  if(isTempTool(tool)){
+    const hot=(tool===TOOL_HEAT)!==(ptr.btn===2);
+    applyTemp(ptr.x,ptr.y,brush,hot?25:-25);
+  }
 }
 
 function toCell(ev){
   return [Math.max(0,Math.min(W-1,Math.floor(ev.clientX/S))), Math.max(0,Math.min(H-1,Math.floor(ev.clientY/S)))];
 }
+// touch: one finger paints, two fingers pinch to resize the brush
+const touches=new Map();
+let pinch=null;
+const touchDist=()=>{ const [a,b]=[...touches.values()]; return Math.hypot(a.x-b.x,a.y-b.y)||1; };
+
 canvas.addEventListener('pointerdown',ev=>{
   ev.preventDefault();
-  canvas.setPointerCapture(ev.pointerId);
+  Sound.init();
+  try{ canvas.setPointerCapture(ev.pointerId); }catch(_){}
+  if(ev.pointerType==='touch'){
+    touches.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+    if(touches.size>=2){
+      ptr.down=false;
+      pinch={d0:touchDist(),b0:brush};
+      updateCursor();
+      return;
+    }
+  }
   const [x,y]=toCell(ev);
   ptr.x=ptr.lx=x; ptr.y=ptr.ly=y; ptr.down=true; ptr.btn=ev.button===2?2:0; ptr.shift=ev.shiftKey;
-  ptr.cx=ev.clientX; ptr.cy=ev.clientY;
+  ptr.cx=ev.clientX; ptr.cy=ev.clientY; ptr.over=true;
   if(tool===TOOL_METEOR&&ptr.btn!==2){ spawnMeteor(); meteorCd=10; }
-  else if(isElementTool(tool)||ptr.btn===2){ if(tool!==TOOL_VORTEX) paintAt(x,y,brush,activeElement()); }
+  else if(paints()) paintAt(x,y,brush,activeElement());
   updateCursor();
 });
 canvas.addEventListener('pointermove',ev=>{
+  if(ev.pointerType==='touch'&&touches.has(ev.pointerId)){
+    touches.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+    if(pinch){
+      if(touches.size>=2) setBrush(Math.round(pinch.b0*touchDist()/pinch.d0));
+      return;
+    }
+  }
   const [x,y]=toCell(ev);
   ptr.cx=ev.clientX; ptr.cy=ev.clientY; ptr.shift=ev.shiftKey; ptr.over=true;
   ptr.x=x; ptr.y=y;
-  if(ptr.down&&tool!==TOOL_VORTEX&&(isElementTool(tool)||ptr.btn===2)){
-    paintLine(ptr.lx,ptr.ly,x,y,brush,activeElement());
-  }
+  if(ptr.down&&paints()) paintLine(ptr.lx,ptr.ly,x,y,brush,activeElement());
   ptr.lx=x; ptr.ly=y;
   updateCursor();
 });
-const endDraw=()=>{ ptr.down=false; updateCursor(); };
+const endDraw=ev=>{
+  if(ev&&ev.pointerType==='touch'){
+    touches.delete(ev.pointerId);
+    if(touches.size<2) pinch=null;
+    if(touches.size===0) ptr.over=false;
+  }
+  ptr.down=false; updateCursor();
+};
 canvas.addEventListener('pointerup',endDraw);
 canvas.addEventListener('pointercancel',endDraw);
-canvas.addEventListener('pointerenter',()=>{ ptr.over=true; updateCursor(); });
-canvas.addEventListener('pointerleave',()=>{ ptr.over=false; updateCursor(); });
+canvas.addEventListener('pointerenter',ev=>{ if(ev.pointerType!=='touch'){ ptr.over=true; updateCursor(); } });
+canvas.addEventListener('pointerleave',ev=>{ if(ev.pointerType!=='touch'){ ptr.over=false; updateCursor(); } });
 canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
 addEventListener('wheel',ev=>{
   if(ev.target!==canvas) return;
@@ -796,20 +1160,24 @@ addEventListener('wheel',ev=>{
 
 function updateCursor(){
   const c=cursorEl;
-  if(!ptr.over&&!ptr.down){ c.className='hidden'; return; }
+  if(!ptr.over&&!ptr.down&&!pinch){ c.className='hidden'; return; }
   const R=tool===TOOL_VORTEX?brush*2+8:Math.max(brush-.5,.5);
   const d=Math.max(6,R*2*S);
   c.style.width=d+'px'; c.style.height=d+'px';
-  c.style.left=ptr.cx+'px'; c.style.top=ptr.cy+'px';
+  if(pinch&&touches.size>=2){
+    const [a,b]=[...touches.values()];
+    c.style.left=(a.x+b.x)/2+'px'; c.style.top=(a.y+b.y)/2+'px';
+  } else { c.style.left=ptr.cx+'px'; c.style.top=ptr.cy+'px'; }
   let cls='';
   if(tool===TOOL_VORTEX) cls='vortex'+((ptr.down&&(ptr.btn===2||ptr.shift))?' repel':'');
   else if(tool===TOOL_METEOR) cls='meteor';
+  else if(isTempTool(tool)) cls=((tool===TOOL_HEAT)!==(ptr.down&&ptr.btn===2))?'heat':'cool';
   else if(tool===EMPTY||(ptr.down&&ptr.btn===2)) cls='erase';
   c.className=cls;
 }
 
 /* ======================= Scenes ======================= */
-function clearAll(){ g.fill(0); life.fill(0); vx.fill(0); vy.fill(0); }
+function clearAll(){ g.fill(0); life.fill(0); vx.fill(0); vy.fill(0); temp.fill(AMBIENT); }
 function put(x,y,e,p){ x|=0; y|=0; if(x<0||x>=W||y<0||y>=H) return; if(p!==undefined&&r01()>p) return; setCell(y*W+x,e); }
 function rect(x0,y0,x1,y1,e,p){ for(let y=y0|0;y<=(y1|0);y++) for(let x=x0|0;x<=(x1|0);x++) put(x,y,e,p); }
 function rectEmpty(x0,y0,x1,y1,e,p){ for(let y=y0|0;y<=(y1|0);y++) for(let x=x0|0;x<=(x1|0);x++){ if(x>=0&&x<W&&y>=0&&y<H&&g[y*W+x]===0) put(x,y,e,p); } }
@@ -821,6 +1189,7 @@ function disc(cx,cy,r,e,p,onlyEmpty){
     put(X,Y,e,p);
   }
 }
+function spoutAt(x,y,e){ put(x,y,SPOUT); if(x>=0&&x<W&&y>=0&&y<H&&g[(y|0)*W+(x|0)]===SPOUT) life[(y|0)*W+(x|0)]=e; }
 function tree(x,gy,h){
   rect(x,gy-h,x+1,gy-1,WOOD);
   disc(x+.5,gy-h-2,Math.max(3,h*.45|0),PLANT,.85,true);
@@ -844,8 +1213,9 @@ const SCENES={
     // conduit & magma chamber
     rect(vcx-2,peak-1,vcx+2,land+4,LAVA);
     disc(vcx,land+8,7,LAVA);
-    // crater spill
+    // crater spill and an ever-erupting vent
     disc(vcx,peak-6,7,LAVA,.95,true);
+    for(let k=-1;k<=1;k++) spoutAt(vcx+k,peak-2,LAVA);
     // forest between volcano and beach
     for(let x=vcx+base+4;x<ox0-6;x+=9+(rnd()%6)){
       const gy=(land+Math.sin(x*.09)*2)|0;
@@ -896,6 +1266,33 @@ const SCENES={
     rect(cx+capW-2,top,cx+capW,bot,WOOD);
     toast('Tip: press G to flip the hourglass');
   },
+  'Frozen Forge'(){
+    const gy=H*.8|0, u=Math.max(1,H/110);
+    rect(0,gy,W-1,H-1,STONE);
+    // frozen lake
+    const lx0=W*.24|0, lx1=W*.5|0, depth=18*u|0;
+    rect(lx0,gy-depth-6*u,lx0+1,gy-1,STONE); rect(lx1,gy-depth-6*u,lx1+1,gy-1,STONE);
+    rect(lx0+2,gy-depth,lx1-1,gy-1,WATER);
+    rect(lx0+2,gy-depth-5*u,lx1-1,gy-depth-1,ICE);
+    // a gentle rain over the lake
+    for(let k=0;k<3;k++) spoutAt(lx0+10+k*((lx1-lx0-20)/2|0),H*.1|0,WATER);
+    // forge: lava hearth under a metal plate
+    const fx0=W*.58|0, fx1=Math.min(W-4,W*.88|0), hh=12*u|0;
+    rect(fx0,gy-hh,fx0+2,gy-1,STONE); rect(fx1-2,gy-hh,fx1,gy-1,STONE);
+    rect(fx0+3,gy-hh,fx1-3,gy-1,LAVA);
+    rect(fx0,gy-hh-2,fx1,gy-hh-1,METAL);
+    // metal rod carries the heat into the ice
+    const ry=gy-depth-3*u|0;
+    rect(lx1-4*u,ry,fx0+4,ry+1,METAL);
+    rect(fx0+3,ry,fx0+4,gy-hh-1,METAL);
+    // things that react to a hot plate
+    const py=gy-hh-3;
+    const mid=(fx0+fx1)/2|0;
+    rect(fx0+8,py-5*u,fx0+8+10*u,py,SAND);
+    rect(mid-6*u,py-8*u,mid+6*u,py,WOOD);
+    rect(fx1-12*u,py-4*u,fx1-4,py,POWDER);
+    toast('Tip: press Y for the thermal view');
+  },
   'Powder Keg'(){
     const gy=H-8;
     rect(0,gy,W-1,H-1,STONE); rect(0,gy-2,W-1,gy-1,SAND);
@@ -934,10 +1331,14 @@ function loadScene(name){
 const $=id=>document.getElementById(id);
 const swatchEls={};
 function toolName(t){ return t<NE?EL[t].name:TOOLS[t].name; }
+const narrow=()=>matchMedia('(max-width:700px)').matches;
 function toolColor(t){
   if(t===EMPTY) return 'repeating-linear-gradient(45deg,#2a2f3a 0 3px,#444b5a 3px 6px)';
   if(t===TOOL_METEOR) return 'radial-gradient(circle at 35% 35%,#fff3c4,#ff8a3d 45%,#7a1f08)';
   if(t===TOOL_VORTEX) return 'conic-gradient(#7cc4ff,#a77cff,#4cf0d0,#7cc4ff)';
+  if(t===TOOL_HEAT) return 'radial-gradient(circle at 50% 70%,#fff0a0,#ff6a20 50%,#8a1a04)';
+  if(t===TOOL_COOL) return 'radial-gradient(circle at 50% 30%,#ffffff,#8fd4ff 45%,#1d5fb0)';
+  if(t===SPOUT) return 'radial-gradient(circle,'+spoutCss()+' 0 35%,#3a404c 40%)';
   if(t===FIRE) return 'linear-gradient(0deg,#d8340a,#ffb43a 60%,#fff0b0)';
   if(t===LAVA) return 'linear-gradient(135deg,#ffcb4d,#ff5a10 55%,#8a1a04)';
   if(t===WATER) return 'linear-gradient(135deg,#6fb4ff,#2668d8)';
@@ -965,18 +1366,35 @@ function toolColor(t){
     const b=document.createElement('button'); b.textContent=name;
     b.addEventListener('click',()=>loadScene(name)); sc.appendChild(b);
   }
+  $('wSave').addEventListener('click',saveLocal);
+  $('wLoad').addEventListener('click',loadLocal);
+  $('wLink').addEventListener('click',shareLink);
+  $('wDown').addEventListener('click',downloadWorld);
+  $('wOpen').addEventListener('click',()=>$('fileIn').click());
+  $('fileIn').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) openWorldFile(f); e.target.value=''; });
+  $('menuBtn').addEventListener('click',()=>document.body.classList.toggle('menu-open'));
+  $('bHeat').addEventListener('click',toggleHeatView);
+  $('bSound').addEventListener('click',toggleSound);
   $('bPlay').addEventListener('click',togglePause);
   $('bStep').addEventListener('click',stepOnce);
   $('bClear').addEventListener('click',()=>{ clearAll(); toast('Cleared'); });
   $('bGrav').addEventListener('click',flipGravity);
   $('bBloom').addEventListener('click',()=>{ toggleBloom(); bloomForced=true; });
+$('bSound').classList.toggle('on',Sound.enabled);
   $('brush').addEventListener('input',e=>setBrush(+e.target.value));
   for(const b of $('speedSeg').children) b.addEventListener('click',()=>setSpeed(+b.dataset.s));
 })();
 
+function spoutCss(){ const [r,g,b]=EL[spoutEl].rgb; return 'rgb('+r+','+g+','+b+')'; }
 function select(t){
   tool=t;
+  if(EMITTABLE.has(t)){
+    spoutEl=t;
+    const sw=swatchEls[SPOUT];
+    if(sw){ sw.querySelector('em').textContent='Spout · '+EL[t].name; sw.firstChild.style.background=toolColor(SPOUT); }
+  }
   for(const k in swatchEls) swatchEls[k].classList.toggle('on',+k===t);
+  if(narrow()) document.body.classList.remove('menu-open');
   updateCursor();
 }
 function setBrush(v){
@@ -1000,7 +1418,12 @@ function syncGravity(){
   $('bGrav').classList.toggle('on',down<0);
 }
 function flipGravity(){ down=-down; syncGravity(); toast(down>0?'Gravity ↓':'Gravity ↑'); }
-function toggleBloom(){ bloom=!bloom; glowC.classList.toggle('off',!bloom); $('bBloom').classList.toggle('on',bloom); }
+function toggleBloom(){ bloom=!bloom; glowC.classList.toggle('off',!bloom||heatView); $('bBloom').classList.toggle('on',bloom); }
+function toggleHeatView(){
+  heatView=!heatView; glowC.classList.toggle('off',!bloom||heatView); $('bHeat').classList.toggle('on',heatView);
+  toast(heatView?'Thermal view':'Normal view');
+}
+function toggleSound(){ Sound.setEnabled(!Sound.enabled); $('bSound').classList.toggle('on',Sound.enabled); toast(Sound.enabled?'Sound on':'Sound off'); }
 
 let toastT=0;
 function toast(msg){
@@ -1010,6 +1433,7 @@ function toast(msg){
 
 addEventListener('keydown',ev=>{
   if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
+  Sound.init();
   const k=ev.key.toLowerCase();
   if(ev.code==='Space'){ ev.preventDefault(); togglePause(); return; }
   if(k==='shift'){ ptr.shift=true; updateCursor(); return; }
@@ -1019,6 +1443,8 @@ addEventListener('keydown',ev=>{
     case 'c': clearAll(); toast('Cleared'); break;
     case 'g': flipGravity(); break;
     case 'b': toggleBloom(); bloomForced=true; break;
+    case 'y': toggleHeatView(); break;
+    case 'n': toggleSound(); break;
     case 'h': document.body.classList.toggle('hide-ui'); break;
     case '[': setBrush(brush-1); break;
     case ']': setBrush(brush+1); break;
@@ -1033,15 +1459,14 @@ addEventListener('resize',()=>{ clearTimeout(resizeT); resizeT=setTimeout(layout
 const DT=1000/60;
 let lowFps=0, bloomForced=false;
 let last=performance.now(), acc=0, fpsFrames=0, fpsTicks=0, fpsT=last, fps=0, tps=0;
-const sFps=$('sFps'), sTps=$('sTps'), sCount=$('sCount'), sHover=$('sHover'), sState=$('sState'), fpsBar=$('fpsbar').firstChild;
+const sFps=$('sFps'), sTps=$('sTps'), sCount=$('sCount'), sHover=$('sHover'), sTemp=$('sTemp'), sState=$('sState'), fpsBar=$('fpsbar').firstChild;
 
 function simTick(){ applyHeldTools(); step(); fpsTicks++; }
 
 function frame(now){
   let dt=now-last; last=now; if(dt>250) dt=250;
   // continuous flow while the brush is held still
-  if(ptr.down&&tool!==TOOL_VORTEX&&tool!==TOOL_METEOR&&(rnd()&1)) paintAt(ptr.x,ptr.y,brush,activeElement());
-  else if(ptr.down&&ptr.btn===2&&tool!==TOOL_VORTEX) paintAt(ptr.x,ptr.y,brush,EMPTY);
+  if(ptr.down&&paints()&&(ptr.btn===2||(rnd()&1))) paintAt(ptr.x,ptr.y,brush,activeElement());
   if(!paused){
     acc+=dt*speed; let n=0;
     while(acc>=DT&&n<4){ simTick(); acc-=DT; n++; }
@@ -1071,9 +1496,11 @@ function frame(now){
     if(bloom&&!bloomForced&&fps<38){ if(++lowFps>=6){ toggleBloom(); toast('Bloom off for performance (B to re-enable)'); } }
     else lowFps=0;
   }
-  if(ptr.over&&(frameNo&7)===0){
-    const t=g[ptr.y*W+ptr.x];
-    sHover.textContent=t?(t===WOOD&&life[ptr.y*W+ptr.x]?'Burning wood':EL[t].name):'—';
+  Sound.frame(EV,fireCount,now);
+  if(ptr.over&&(frameNo&7)===0&&ptr.x>=0){
+    const i=ptr.y*W+ptr.x, t=g[i];
+    sHover.textContent=t?(t===WOOD&&life[i]?'Burning wood':t===SPOUT?'Spout · '+(EL[life[i]]?EL[life[i]].name:'?'):EL[t].name):'—';
+    sTemp.textContent=t?Math.round(temp[i])+'°C':'—';
   }
   requestAnimationFrame(frame);
 }
@@ -1081,10 +1508,10 @@ function frame(now){
 /* ======================= Test hook (only with ?test in the URL) ======================= */
 const TEST_MODE=/[?&]test(?:[=&]|$)/.test(location.search);
 function exposeTestApi(){
-  const ids={EMPTY,SAND,WATER,STONE,WOOD,FIRE,SMOKE,STEAM,OIL,ACID,POWDER,LAVA,GLASS,METAL,ICE,PLANT,METEOR};
+  const ids={EMPTY,SAND,WATER,STONE,WOOD,FIRE,SMOKE,STEAM,OIL,ACID,POWDER,LAVA,GLASS,METAL,ICE,PLANT,METEOR,SPOUT};
   const idx=(x,y)=>{ if(x<0||x>=W||y<0||y>=H) throw new RangeError('cell out of bounds: '+x+','+y); return y*W+x; };
   window.sandbox=Object.freeze({
-    E:Object.freeze(ids), TOOL_METEOR, TOOL_VORTEX,
+    E:Object.freeze(ids), TOOL_METEOR, TOOL_VORTEX, TOOL_HEAT, TOOL_COOL,
     names:()=>EL.map(e=>e.name),
     size:()=>({W,H,S}),
     seed:n=>{ seed=(n|0)||1; },
@@ -1108,7 +1535,20 @@ function exposeTestApi(){
     render:()=>render(),
     pixel:(x,y)=>buf[idx(x,y)],
     background:(x,y)=>bg32[idx(x,y)],
-    state:()=>({paused,tool,brush,down,bloom,speed,fps,tps,particles:particleCount}),
+    state:()=>({paused,tool,brush,down,bloom,heatView,speed,fps,tps,particles:particleCount,spoutEl,
+      sound:{enabled:Sound.enabled,running:Sound.running,stats:{...Sound.stats}}}),
+    tempAt:(x,y)=>temp[idx(x,y)],
+    setTemp:(x,y,t)=>{ temp[idx(x,y)]=t; },
+    heat:(x,y,r,dt)=>applyTemp(x,y,r,dt),
+    spout:(x,y,e)=>{ const i=idx(x,y); setCell(i,SPOUT); life[i]=e; },
+    spoutOf:(x,y)=>life[idx(x,y)],
+    encode:()=>Array.from(encodeWorld()),
+    pack:async()=>toB64(await packWorld()),
+    unpack:async b64=>{ await unpackWorld(fromB64(b64)); },
+    unpackRaw:async arr=>{ await unpackWorld(new Uint8Array(arr)); },
+    saveLocal:()=>saveLocal(),
+    loadLocal:()=>loadLocal(),
+    shareLink:()=>shareLink(),
     pause:p=>{ if(!!p!==paused) togglePause(); },
   });
 }
@@ -1116,7 +1556,9 @@ function exposeTestApi(){
 layout();
 select(SAND);
 setBrush(5);
-if(TEST_MODE){ exposeTestApi(); togglePause(); clearAll(); }
+const hasLink=/^#w=/.test(location.hash);
+if(TEST_MODE){ exposeTestApi(); togglePause(); clearAll(); if(hasLink) loadFromHash(); }
+else if(hasLink) loadFromHash().then(ok=>{ if(!ok) loadScene('Volcano & Ocean'); });
 else loadScene('Volcano & Ocean');
 requestAnimationFrame(frame);
 })();
